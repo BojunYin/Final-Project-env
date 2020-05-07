@@ -1,5 +1,3 @@
-
-
 library(shiny)
 library(ggplot2)
 library(ggplot2)
@@ -46,11 +44,28 @@ pj_5 <- project(COO_5, proj4string, inverse=TRUE)
 latlon_5 <- data.frame(lat=pj_5$y, lon=pj_5$x)
 topsoil=topsoil%>%mutate(lat=latlon_5$lat,long=latlon_5$lon)
 
-ewY = c(7500000,7600000)
-ewX = c(200000,200000)
+ewY = c(7500000,7600000,7600000)
+ewX = c(200000,200000,460000)
 ew = data.frame(ewX,ewY)
 pj_6 <- project(ew, proj4string, inverse=TRUE)
 print(pj_6)
+
+moss_EW=moss%>%filter(((moss$lat>67.46288) & (moss$lat < 68.35282)))%>%
+  mutate(distance= (XCOO-753970)/1000)
+ohorizon_EW=ohorizon%>%filter(((ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)))%>%
+  mutate(distance= (XCOO-753970)/1000)
+bhorizon_EW=bhorizon%>%filter(((bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)))%>%
+  mutate(distance= (XCOO-753970)/1000)
+chorizon_EW=chorizon%>%filter(((chorizon$lat>67.46288) & (chorizon$lat < 68.35282)))%>%
+  mutate(distance= (XCOO-753970)/1000)
+topsoil_EW=topsoil%>%filter(((topsoil$lat>67.46288) & (topsoil$lat < 68.35282)))%>%
+  mutate(distance= (XCOO-753970)/1000)
+
+moss_NS=moss%>%filter(moss$XCOO<460000)%>%mutate(distance = abs((YCOO-max(YCOO)+2000)/1000))
+ohorizon_NS=ohorizon%>%filter(ohorizon$XCOO<460000)%>%mutate(distance = abs((YCOO-max(YCOO)+2000)/1000))
+bhorizon_NS=bhorizon%>%filter(bhorizon$XCOO<460000)%>%mutate(distance = abs((YCOO-max(YCOO)+2000)/1000))
+chorizon_NS=chorizon%>%filter(chorizon$XCOO<460000)%>%mutate(distance = abs((YCOO-max(YCOO)+2000)/1000))
+topsoil_NS=topsoil%>%filter(topsoil$XCOO<460000)%>%mutate(distance = abs((YCOO-max(YCOO)+2000)/1000))
 
 loc = list(x=c(766824.2,755182.3,708614.7,667868.0,354991.9,353536.7,592195.7),
            y=c(7751607,7679137,7635654,7611937,7614572,7908407,7903136))
@@ -99,254 +114,375 @@ ui <- fluidPage(
                   choices = c("Ni","Ag", "Al","As", "Au","B","Ba","Be","Bi","Ca","Cd","Co",
                               "Cr","Cu","Fe","Hg","K","La","Mg","Mn","Mo","Na","Ni","p",
                               "Pb","Pd","Pt","Rb","S","Sb","Sc","Se","Si","Sr","Th","Tl","U","V","Y","Zn"
-                              ),
+                  ),
                   selected = "Ni"),
-     selectInput("Measurements", 
+      selectInput("Measurements", 
                   label = "choose a way of measurements to display",
                   choices = c("Moss","O-horizon","B-horizon","C-horizon","Topsoil"),
                   selected = "Moss"),
-     
-     selectInput("elements2", 
-                 label = "Choose the second chemical elements to compare ",
-                 choices = c("Ni","Ag", "Al","As", "Au","B","Ba","Be","Bi","Ca","Cd","Co",
-                             "Cr","Cu","Fe","Hg","K","La","Mg","Mn","Mo","Na","Ni","p",
-                             "Pb","Pd","Pt","Rb","S","Sb","Sc","Se","Si","Sr","Th","Tl","U","V","Y","Zn"
-                 ),
-                 selected = "Ni"),
-     width = 3
-     ),
-     mainPanel(plotOutput("gmplot"))
-    
+      
+      selectInput("elements2", 
+                  label = "Choose the second chemical elements to compare ",
+                  choices = c("Ni","Ag", "Al","As", "Au","B","Ba","Be","Bi","Ca","Cd","Co",
+                              "Cr","Cu","Fe","Hg","K","La","Mg","Mn","Mo","Na","Ni","p",
+                              "Pb","Pd","Pt","Rb","S","Sb","Sc","Se","Si","Sr","Th","Tl","U","V","Y","Zn"
+                  ),
+                  selected = "Ni"),
+      width = 2
+    ),
+    mainPanel(tabsetPanel(
+      tabPanel("spatial data mapping", plotOutput("gmplot1")), 
+      tabPanel("relationship between elements",plotOutput("gmplot2")), 
+      tabPanel("spatial distance plot",plotOutput("gmplot3"))
+    )
+    )
   )
 )
 
 
 server <- function(input, output) {
-  output$gmplot  <- renderPlot({
-    
+  
+  output$gmplot1  <- renderPlot({ 
     data_set <- switch(input$Measurements, 
-                   "Moss" = moss,
-                   "O-horizon"= ohorizon,
-                   "B-horizon"= bhorizon,
-                   "C-horizon"= chorizon,
-                   "Topsoil"= topsoil)
+                       "Moss" = moss,
+                       "O-horizon"= ohorizon,
+                       "B-horizon"= bhorizon,
+                       "C-horizon"= chorizon,
+                       "Topsoil"= topsoil)
     
     if (input$Measurements == "Moss"){
-    elemets <- switch(input$elements,
-                      "Ni"= moss$Ni,
-                      "Ag"= moss$Ag,
-                      "Al"=moss$Al,
-                      "As"=moss$Au,
-                      "Au"=moss$Au,
-                      "B"=moss$B,
-                      "Ba"=moss$Ba,
-                      "Be"=moss$Be,
-                      "Bi"=moss$Bi,
-                      "Ca"=moss$Ca,
-                      "Cd"=moss$Cd,
-                      "Co"=moss$Co,
-                      "Cr"=moss$Cr,
-                      "Cu"=moss$Cu,
-                      "Fe"=moss$Fe,
-                      "Hg"=moss$Hg,
-                      "K"=moss$K,
-                      "La"=moss$La,
-                      "Mg"=moss$Mg,
-                      "Mn"=moss$Mn,
-                      "Mo"=moss$Mo,
-                      "Na"=moss$Na,
-                      "Ni"=moss$Ni,
-                      "P"=moss$P,
-                      "Pb"=moss$Pb,
-                      "Pd"=moss$Pd,
-                      "Pt"=moss$Pt,
-                      "Rb"=moss$Rb,
-                      "S"=moss$S,
-                      "Sb"=moss$Sb,
-                      "Sc"=moss$Sc,
-                      "Se"=moss$Se,
-                      "Si"=moss$Si,
-                      "Sr"=moss$Sr,
-                      "Th"=moss$Th,
-                      "Tl"=moss$Tl,
-                      "U"=moss$U,
-                      "V"=moss$V,
-                      "Y"=moss$Y,
-                      "Zn"=moss$Zn)
-    elements2 <- switch(input$elements2,
-                      "Ni"= moss$Ni,
-                      "Ag"= moss$Ag,
-                      "Al"=moss$Al,
-                      "As"=moss$Au,
-                      "Au"=moss$Au,
-                      "B"=moss$B,
-                      "Ba"=moss$Ba,
-                      "Be"=moss$Be,
-                      "Bi"=moss$Bi,
-                      "Ca"=moss$Ca,
-                      "Cd"=moss$Cd,
-                      "Co"=moss$Co,
-                      "Cr"=moss$Cr,
-                      "Cu"=moss$Cu,
-                      "Fe"=moss$Fe,
-                      "Hg"=moss$Hg,
-                      "K"=moss$K,
-                      "La"=moss$La,
-                      "Mg"=moss$Mg,
-                      "Mn"=moss$Mn,
-                      "Mo"=moss$Mo,
-                      "Na"=moss$Na,
-                      "Ni"=moss$Ni,
-                      "P"=moss$P,
-                      "Pb"=moss$Pb,
-                      "Pd"=moss$Pd,
-                      "Pt"=moss$Pt,
-                      "Rb"=moss$Rb,
-                      "S"=moss$S,
-                      "Sb"=moss$Sb,
-                      "Sc"=moss$Sc,
-                      "Se"=moss$Se,
-                      "Si"=moss$Si,
-                      "Sr"=moss$Sr,
-                      "Th"=moss$Th,
-                      "Tl"=moss$Tl,
-                      "U"=moss$U,
-                      "V"=moss$V,
-                      "Y"=moss$Y,
-                      "Zn"=moss$Zn)
+      elemets <- switch(input$elements,
+                        "Ni"= moss$Ni,
+                        "Ag"= moss$Ag,
+                        "Al"=moss$Al,
+                        "As"=moss$Au,
+                        "Au"=moss$Au,
+                        "B"=moss$B,
+                        "Ba"=moss$Ba,
+                        "Be"=moss$Be,
+                        "Bi"=moss$Bi,
+                        "Ca"=moss$Ca,
+                        "Cd"=moss$Cd,
+                        "Co"=moss$Co,
+                        "Cr"=moss$Cr,
+                        "Cu"=moss$Cu,
+                        "Fe"=moss$Fe,
+                        "Hg"=moss$Hg,
+                        "K"=moss$K,
+                        "La"=moss$La,
+                        "Mg"=moss$Mg,
+                        "Mn"=moss$Mn,
+                        "Mo"=moss$Mo,
+                        "Na"=moss$Na,
+                        "Ni"=moss$Ni,
+                        "P"=moss$P,
+                        "Pb"=moss$Pb,
+                        "Pd"=moss$Pd,
+                        "Pt"=moss$Pt,
+                        "Rb"=moss$Rb,
+                        "S"=moss$S,
+                        "Sb"=moss$Sb,
+                        "Sc"=moss$Sc,
+                        "Se"=moss$Se,
+                        "Si"=moss$Si,
+                        "Sr"=moss$Sr,
+                        "Th"=moss$Th,
+                        "Tl"=moss$Tl,
+                        "U"=moss$U,
+                        "V"=moss$V,
+                        "Y"=moss$Y,
+                        "Zn"=moss$Zn)
+      
+    }
+    if (input$Measurements == "O-horizon"){
+      elemets <- switch(input$elements,
+                        "Ni"= ohorizon$Ni,
+                        "Ag"= ohorizon$Ag,
+                        "Al"=ohorizon$Al,
+                        "As"=ohorizon$Au,
+                        "Au"=ohorizon$Au,
+                        "B"=ohorizon$B,
+                        "Ba"=ohorizon$Ba,
+                        "Be"=ohorizon$Be,
+                        "Bi"=ohorizon$Bi,
+                        "Ca"=ohorizon$Ca,
+                        "Cd"=ohorizon$Cd,
+                        "Co"=ohorizon$Co,
+                        "Cr"=ohorizon$Cr,
+                        "Cu"=ohorizon$Cu,
+                        "Fe"=ohorizon$Fe,
+                        "Hg"=ohorizon$Hg,
+                        "K"=ohorizon$K,
+                        "La"=ohorizon$La,
+                        "Mg"=ohorizon$Mg,
+                        "Mn"=ohorizon$Mn,
+                        "Mo"=ohorizon$Mo,
+                        "Na"=ohorizon$Na,
+                        "Ni"=ohorizon$Ni,
+                        "P"=ohorizon$P,
+                        "Pb"=ohorizon$Pb,
+                        "Pd"=ohorizon$Pd,
+                        "Pt"=ohorizon$Pt,
+                        "Rb"=ohorizon$Rb,
+                        "S"=ohorizon$S,
+                        "Sb"=ohorizon$Sb,
+                        "Sc"=ohorizon$Sc,
+                        "Se"=ohorizon$Se,
+                        "Si"=ohorizon$Si,
+                        "Sr"=ohorizon$Sr,
+                        "Th"=ohorizon$Th,
+                        "Tl"=ohorizon$Tl,
+                        "U"=ohorizon$U,
+                        "V"=ohorizon$V,
+                        "Y"=ohorizon$Y,
+                        "Zn"=ohorizon$Zn)
+      
+    }
+    if (input$Measurements == "B-horizon"){
+      elemets <- switch(input$elements,
+                        "Ni"= bhorizon$Ni,
+                        "Ag"= bhorizon$Ag,
+                        "Al"=bhorizon$Al,
+                        "As"=bhorizon$Au,
+                        "Au"=bhorizon$Au,
+                        "B"=bhorizon$B,
+                        "Ba"=bhorizon$Ba,
+                        "Be"=bhorizon$Be,
+                        "Bi"=bhorizon$Bi,
+                        "Ca"=bhorizon$Ca,
+                        "Cd"=bhorizon$Cd,
+                        "Co"=bhorizon$Co,
+                        "Cr"=bhorizon$Cr,
+                        "Cu"=bhorizon$Cu,
+                        "Fe"=bhorizon$Fe,
+                        "Hg"=bhorizon$Hg,
+                        "K"=bhorizon$K,
+                        "La"=bhorizon$La,
+                        "Mg"=bhorizon$Mg,
+                        "Mn"=bhorizon$Mn,
+                        "Mo"=bhorizon$Mo,
+                        "Na"=bhorizon$Na,
+                        "Ni"=bhorizon$Ni,
+                        "P"=bhorizon$P,
+                        "Pb"=bhorizon$Pb,
+                        "Pd"=bhorizon$Pd,
+                        "Pt"=bhorizon$Pt,
+                        "Rb"=bhorizon$Rb,
+                        "S"=bhorizon$S,
+                        "Sb"=bhorizon$Sb,
+                        "Sc"=bhorizon$Sc,
+                        "Se"=bhorizon$Se,
+                        "Si"=bhorizon$Si,
+                        "Sr"=bhorizon$Sr,
+                        "Th"=bhorizon$Th,
+                        "Tl"=bhorizon$Tl,
+                        "U"=bhorizon$U,
+                        "V"=bhorizon$V,
+                        "Y"=bhorizon$Y,
+                        "Zn"=bhorizon$Zn)
+      
+    }
+    if (input$Measurements == "C-horizon"){
+      elemets <- switch(input$elements,
+                        "Ni"= chorizon$Ni,
+                        "Ag"= chorizon$Ag,
+                        "Al"=chorizon$Al,
+                        "As"=chorizon$Au,
+                        "Au"=chorizon$Au,
+                        "B"=chorizon$B,
+                        "Ba"=chorizon$Ba,
+                        "Be"=chorizon$Be,
+                        "Bi"=chorizon$Bi,
+                        "Ca"=chorizon$Ca,
+                        "Cd"=chorizon$Cd,
+                        "Co"=chorizon$Co,
+                        "Cr"=chorizon$Cr,
+                        "Cu"=chorizon$Cu,
+                        "Fe"=chorizon$Fe,
+                        "Hg"=chorizon$Hg,
+                        "K"=chorizon$K,
+                        "La"=chorizon$La,
+                        "Mg"=chorizon$Mg,
+                        "Mn"=chorizon$Mn,
+                        "Mo"=chorizon$Mo,
+                        "Na"=chorizon$Na,
+                        "Ni"=chorizon$Ni,
+                        "P"=chorizon$P,
+                        "Pb"=chorizon$Pb,
+                        "Pd"=chorizon$Pd,
+                        "Pt"=chorizon$Pt,
+                        "Rb"=chorizon$Rb,
+                        "S"=chorizon$S,
+                        "Sb"=chorizon$Sb,
+                        "Sc"=chorizon$Sc,
+                        "Se"=chorizon$Se,
+                        "Si"=chorizon$Si,
+                        "Sr"=chorizon$Sr,
+                        "Th"=chorizon$Th,
+                        "Tl"=chorizon$Tl,
+                        "U"=chorizon$U,
+                        "V"=chorizon$V,
+                        "Y"=chorizon$Y,
+                        "Zn"=chorizon$Zn)
+      
+    }
+    if (input$Measurements == "Topsoil"){
+      elemets <- switch(input$elements,
+                        "Ni"= topsoil$Ni,
+                        "Ag"= topsoil$Ag,
+                        "Al"=topsoil$Al,
+                        "As"=topsoil$Au,
+                        "Au"=topsoil$Au,
+                        "B"=topsoil$B,
+                        "Ba"=topsoil$Ba,
+                        "Be"=topsoil$Be,
+                        "Bi"=topsoil$Bi,
+                        "Ca"=topsoil$Ca,
+                        "Cd"=topsoil$Cd,
+                        "Co"=topsoil$Co,
+                        "Cr"=topsoil$Cr,
+                        "Cu"=topsoil$Cu,
+                        "Fe"=topsoil$Fe,
+                        "Hg"=topsoil$Hg,
+                        "K"=topsoil$K,
+                        "La"=topsoil$La,
+                        "Mg"=topsoil$Mg,
+                        "Mn"=topsoil$Mn,
+                        "Mo"=topsoil$Mo,
+                        "Na"=topsoil$Na,
+                        "Ni"=topsoil$Ni,
+                        "P"=topsoil$P,
+                        "Pb"=topsoil$Pb,
+                        "Pd"=topsoil$Pd,
+                        "Pt"=topsoil$Pt,
+                        "Rb"=topsoil$Rb,
+                        "S"=topsoil$S,
+                        "Sb"=topsoil$Sb,
+                        "Sc"=topsoil$Sc,
+                        "Se"=topsoil$Se,
+                        "Si"=topsoil$Si,
+                        "Sr"=topsoil$Sr,
+                        "Th"=topsoil$Th,
+                        "Tl"=topsoil$Tl,
+                        "U"=topsoil$U,
+                        "V"=topsoil$V,
+                        "Y"=topsoil$Y,
+                        "Zn"=topsoil$Zn)
+      
+    }
     
-    X_range = moss$long[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Y_range = moss$lat[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Ni_M= moss$Ni[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Ag_M= moss$Ag[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Al_M=moss$Al[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    As_M=moss$Au[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Au_M=moss$Au[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    B_M=moss$B[(moss$lat>67.46288) & (moss$lat < 68.35282)]                     
-    Ba_M=moss$Ba[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Be_M=moss$Be[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Bi_M=moss$Bi[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Ca_M=moss$Ca[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Cd_M=moss$Cd[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Co_M=moss$Co[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Cr_M=moss$Cr[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Cu_M=moss$Cu[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Fe_M=moss$Fe[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Hg_M=moss$Hg[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    K_M=moss$K[(moss$lat>67.46288) & (moss$lat < 68.35282)]                      
-    La_M=moss$La[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Mg_M=moss$Mg[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Mn_M=moss$Mn[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Mo_M=moss$Mo[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Na_M=moss$Na[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Ni_M=moss$Ni[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    P_M=moss$P[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Pb_M=moss$Pb[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Pd_M=moss$Pd[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Pt_M=moss$Pt[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Rb_M=moss$Rb[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    S_M=moss$S[(moss$lat>67.46288) & (moss$lat < 68.35282)]                      
-    Sb_M=moss$Sb[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Sc_M=moss$Sc[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Se_M=moss$Se[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Si_M=moss$Si[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Sr_M=moss$Sr[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Th_M=moss$Th[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Tl_M=moss$Tl[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    U_M=moss$U[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    V_M=moss$V[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Y_M=moss$Y[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    Zn_M=moss$Zn[(moss$lat>67.46288) & (moss$lat < 68.35282)]
-    distance = (moss$XCOO[(moss$lat>67.46288) & (moss$lat < 68.35282)]-753970)/1000
-    data_plot1 = data.frame(X_range,Y_range,distance,Ni_M,Ag_M, Al_M,As_M, Au_M,B_M,Ba_M,Be_M,Bi_M,Ca_M,Cd_M,Co_M,
-                            Cr_M,Cu_M,Fe_M,Hg_M,K_M,La_M,Mg_M,Mn_M,Mo_M,Na_M,Ni_M,P_M,
-                            Pb_M,Pd_M,Pt_M,Rb_M,S_M,Sb_M,Sc_M,Se_M,Si_M,Sr_M,Th_M,Tl_M,U_M,V_M,Y_M,Zn_M)
-    distance_M = data_plot1$distance
-    elements_M = switch(input$elements,
-                        "Ni"= data_plot1$Ni_M,
-                        "Ag"= data_plot1$Ag_M,
-                        "Al"=data_plot1$Al_M,
-                        "As"=data_plot1$Au_M,
-                        "Au"=data_plot1$Au_M,
-                        "B"=data_plot1$B_M,
-                        "Ba"=data_plot1$Ba_M,
-                        "Be"=data_plot1$Be_M,
-                        "Bi"=data_plot1$Bi_M,
-                        "Ca"=data_plot1$Ca_M,
-                        "Cd"=data_plot1$Cd_M,
-                        "Co"=data_plot1$Co_M,
-                        "Cr"=data_plot1$Cr_M,
-                        "Cu"=data_plot1$Cu_M,
-                        "Fe"=data_plot1$Fe_M,
-                        "Hg"=data_plot1$Hg_M,
-                        "K"=data_plot1$K_M,
-                        "La"=data_plot1$La_M,
-                        "Mg"=data_plot1$Mg_M,
-                        "Mn"=data_plot1$Mn_M,
-                        "Mo"=data_plot1$Mo_M,
-                        "Na"=data_plot1$Na_M,
-                        "Ni"=data_plot1$Ni_M,
-                        "P"=data_plot1$P_M,
-                        "Pb"=data_plot1$Pb_M,
-                        "Pd"=data_plot1$Pd_M,
-                        "Pt"=data_plot1$Pt_M,
-                        "Rb"=data_plot1$Rb_M,
-                        "S"=data_plot1$S_M,
-                        "Sb"=data_plot1$Sb_M,
-                        "Sc"=data_plot1$Sc_M,
-                        "Se"=data_plot1$Se_M,
-                        "Si"=data_plot1$Si_M,
-                        "Sr"=data_plot1$Sr_M,
-                        "Th"=data_plot1$Th_M,
-                        "Tl"=data_plot1$Tl_M,
-                        "U"=data_plot1$U_M,
-                        "V"=data_plot1$V_M,
-                        "Y"=data_plot1$Y_M,
-                        "Zn"=data_plot1$Zn)
-    data_plot2 = moss_locin
-    distance_Z = moss_locin$distance
-    elements_Z <- switch(input$elements,
-                         "Ni"= moss_locin$Ni,
-                         "Ag"= moss_locin$Ag,
-                         "Al"=moss_locin$Al,
-                         "As"=moss_locin$Au,
-                         "Au"=moss_locin$Au,
-                         "B"=moss_locin$B,
-                         "Ba"=moss_locin$Ba,
-                         "Be"=moss_locin$Be,
-                         "Bi"=moss_locin$Bi,
-                         "Ca"=moss_locin$Ca,
-                         "Cd"=moss_locin$Cd,
-                         "Co"=moss_locin$Co,
-                         "Cr"=moss_locin$Cr,
-                         "Cu"=moss_locin$Cu,
-                         "Fe"=moss_locin$Fe,
-                         "Hg"=moss_locin$Hg,
-                         "K"=moss_locin$K,
-                         "La"=moss_locin$La,
-                         "Mg"=moss_locin$Mg,
-                         "Mn"=moss_locin$Mn,
-                         "Mo"=moss_locin$Mo,
-                         "Na"=moss_locin$Na,
-                         "Ni"=moss_locin$Ni,
-                         "P"=moss_locin$P,
-                         "Pb"=moss_locin$Pb,
-                         "Pd"=moss_locin$Pd,
-                         "Pt"=moss_locin$Pt,
-                         "Rb"=moss_locin$Rb,
-                         "S"=moss_locin$S,
-                         "Sb"=moss_locin$Sb,
-                         "Sc"=moss_locin$Sc,
-                         "Se"=moss_locin$Se,
-                         "Si"=moss_locin$Si,
-                         "Sr"=moss_locin$Sr,
-                         "Th"=moss_locin$Th,
-                         "Tl"=moss_locin$Tl,
-                         "U"=moss_locin$U,
-                         "V"=moss_locin$V,
-                         "Y"=moss_locin$Y,
-                         "Zn"=moss_locin$Zn)
+    p1 <- ggmap(map)+geom_point(aes(x=long, y = lat, size = elemets,fill = elemets), data = data_set,shape=21, alpha=0.8)+
+      geom_point(data=latlon_location, aes(x=lon,y=lat), color='red',size=3)+
+      scale_fill_gradient(low = "white", high = "blue")+
+      scale_size_continuous(range = c(1, 7), breaks=pretty_breaks(5))+
+      labs(title = paste("the distribution of",input$elements,"in",input$Measurements,"soils of the Kola Project area"),
+           x = "longitude", y = "latitude",
+           caption ="displayed in a linear relationship between analytical value and proportional dot size") 
     
+    p2 <-  ggmap(map)+geom_point(aes(x=long, y = lat, size =elemets,fill = elemets), data = data_set,shape=21, alpha=0.8)+
+      geom_point(data=latlon_location, aes(x=lon,y=lat), color='red',size=3)+
+      scale_fill_gradient(low = "white", high = "blue")+
+      scale_size_continuous(range = c(1, 12), breaks=pretty_breaks(5))+
+      labs(title = paste("the distribution of",input$elements,"in",input$Measurements,"soils of the Kola Project area"),
+           x = "longitude", y = "latitude",
+           caption ="displayed in a exponential relationship which focus on large value") 
+    
+    grid.arrange(p1,p2,ncol=2)
+  },height = 500, width = 1000)
+  
+  output$gmplot2  <- renderPlot({ 
+    data_set <- switch(input$Measurements, 
+                       "Moss" = moss,
+                       "O-horizon"= ohorizon,
+                       "B-horizon"= bhorizon,
+                       "C-horizon"= chorizon,
+                       "Topsoil"= topsoil)
+    
+    if (input$Measurements == "Moss"){
+      elemets <- switch(input$elements,
+                        "Ni"= moss$Ni,
+                        "Ag"= moss$Ag,
+                        "Al"=moss$Al,
+                        "As"=moss$Au,
+                        "Au"=moss$Au,
+                        "B"=moss$B,
+                        "Ba"=moss$Ba,
+                        "Be"=moss$Be,
+                        "Bi"=moss$Bi,
+                        "Ca"=moss$Ca,
+                        "Cd"=moss$Cd,
+                        "Co"=moss$Co,
+                        "Cr"=moss$Cr,
+                        "Cu"=moss$Cu,
+                        "Fe"=moss$Fe,
+                        "Hg"=moss$Hg,
+                        "K"=moss$K,
+                        "La"=moss$La,
+                        "Mg"=moss$Mg,
+                        "Mn"=moss$Mn,
+                        "Mo"=moss$Mo,
+                        "Na"=moss$Na,
+                        "Ni"=moss$Ni,
+                        "P"=moss$P,
+                        "Pb"=moss$Pb,
+                        "Pd"=moss$Pd,
+                        "Pt"=moss$Pt,
+                        "Rb"=moss$Rb,
+                        "S"=moss$S,
+                        "Sb"=moss$Sb,
+                        "Sc"=moss$Sc,
+                        "Se"=moss$Se,
+                        "Si"=moss$Si,
+                        "Sr"=moss$Sr,
+                        "Th"=moss$Th,
+                        "Tl"=moss$Tl,
+                        "U"=moss$U,
+                        "V"=moss$V,
+                        "Y"=moss$Y,
+                        "Zn"=moss$Zn)
+      elements2 <- switch(input$elements2,
+                          "Ni"= moss$Ni,
+                          "Ag"= moss$Ag,
+                          "Al"=moss$Al,
+                          "As"=moss$Au,
+                          "Au"=moss$Au,
+                          "B"=moss$B,
+                          "Ba"=moss$Ba,
+                          "Be"=moss$Be,
+                          "Bi"=moss$Bi,
+                          "Ca"=moss$Ca,
+                          "Cd"=moss$Cd,
+                          "Co"=moss$Co,
+                          "Cr"=moss$Cr,
+                          "Cu"=moss$Cu,
+                          "Fe"=moss$Fe,
+                          "Hg"=moss$Hg,
+                          "K"=moss$K,
+                          "La"=moss$La,
+                          "Mg"=moss$Mg,
+                          "Mn"=moss$Mn,
+                          "Mo"=moss$Mo,
+                          "Na"=moss$Na,
+                          "Ni"=moss$Ni,
+                          "P"=moss$P,
+                          "Pb"=moss$Pb,
+                          "Pd"=moss$Pd,
+                          "Pt"=moss$Pt,
+                          "Rb"=moss$Rb,
+                          "S"=moss$S,
+                          "Sb"=moss$Sb,
+                          "Sc"=moss$Sc,
+                          "Se"=moss$Se,
+                          "Si"=moss$Si,
+                          "Sr"=moss$Sr,
+                          "Th"=moss$Th,
+                          "Tl"=moss$Tl,
+                          "U"=moss$U,
+                          "V"=moss$V,
+                          "Y"=moss$Y,
+                          "Zn"=moss$Zn)
+      
+      
     }
     if (input$Measurements == "O-horizon"){
       elemets <- switch(input$elements,
@@ -391,177 +527,47 @@ server <- function(input, output) {
                         "Y"=ohorizon$Y,
                         "Zn"=ohorizon$Zn)
       elements2 <- switch(input$elements2,
-                        "Ni"= ohorizon$Ni,
-                        "Ag"= ohorizon$Ag,
-                        "Al"=ohorizon$Al,
-                        "As"=ohorizon$Au,
-                        "Au"=ohorizon$Au,
-                        "B"=ohorizon$B,
-                        "Ba"=ohorizon$Ba,
-                        "Be"=ohorizon$Be,
-                        "Bi"=ohorizon$Bi,
-                        "Ca"=ohorizon$Ca,
-                        "Cd"=ohorizon$Cd,
-                        "Co"=ohorizon$Co,
-                        "Cr"=ohorizon$Cr,
-                        "Cu"=ohorizon$Cu,
-                        "Fe"=ohorizon$Fe,
-                        "Hg"=ohorizon$Hg,
-                        "K"=ohorizon$K,
-                        "La"=ohorizon$La,
-                        "Mg"=ohorizon$Mg,
-                        "Mn"=ohorizon$Mn,
-                        "Mo"=ohorizon$Mo,
-                        "Na"=ohorizon$Na,
-                        "Ni"=ohorizon$Ni,
-                        "P"=ohorizon$P,
-                        "Pb"=ohorizon$Pb,
-                        "Pd"=ohorizon$Pd,
-                        "Pt"=ohorizon$Pt,
-                        "Rb"=ohorizon$Rb,
-                        "S"=ohorizon$S,
-                        "Sb"=ohorizon$Sb,
-                        "Sc"=ohorizon$Sc,
-                        "Se"=ohorizon$Se,
-                        "Si"=ohorizon$Si,
-                        "Sr"=ohorizon$Sr,
-                        "Th"=ohorizon$Th,
-                        "Tl"=ohorizon$Tl,
-                        "U"=ohorizon$U,
-                        "V"=ohorizon$V,
-                        "Y"=ohorizon$Y,
-                        "Zn"=ohorizon$Zn)
-      X_range = ohorizon$long[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Y_range = ohorizon$lat[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Ni_M= ohorizon$Ni[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Ag_M= ohorizon$Ag[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Al_M=ohorizon$Al[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      As_M=ohorizon$Au[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Au_M=ohorizon$Au[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      B_M=ohorizon$B[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]                     
-      Ba_M=ohorizon$Ba[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Be_M=ohorizon$Be[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Bi_M=ohorizon$Bi[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Ca_M=ohorizon$Ca[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Cd_M=ohorizon$Cd[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Co_M=ohorizon$Co[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Cr_M=ohorizon$Cr[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Cu_M=ohorizon$Cu[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Fe_M=ohorizon$Fe[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Hg_M=ohorizon$Hg[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      K_M=ohorizon$K[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]                      
-      La_M=ohorizon$La[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Mg_M=ohorizon$Mg[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Mn_M=ohorizon$Mn[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Mo_M=ohorizon$Mo[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Na_M=ohorizon$Na[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Ni_M=ohorizon$Ni[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      P_M=ohorizon$P[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Pb_M=ohorizon$Pb[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Pd_M=ohorizon$Pd[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Pt_M=ohorizon$Pt[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Rb_M=ohorizon$Rb[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      S_M=ohorizon$S[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]                      
-      Sb_M=ohorizon$Sb[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Sc_M=ohorizon$Sc[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Se_M=ohorizon$Se[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Si_M=ohorizon$Si[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Sr_M=ohorizon$Sr[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Th_M=ohorizon$Th[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Tl_M=ohorizon$Tl[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      U_M=ohorizon$U[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      V_M=ohorizon$V[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Y_M=ohorizon$Y[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      Zn_M=ohorizon$Zn[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]
-      distance = (ohorizon$XCOO[(ohorizon$lat>67.46288) & (ohorizon$lat < 68.35282)]-753970)/1000
-      data_plot1 = data.frame(X_range,Y_range,distance,Ni_M,Ag_M, Al_M,As_M, Au_M,B_M,Ba_M,Be_M,Bi_M,Ca_M,Cd_M,Co_M,
-                              Cr_M,Cu_M,Fe_M,Hg_M,K_M,La_M,Mg_M,Mn_M,Mo_M,Na_M,Ni_M,P_M,
-                              Pb_M,Pd_M,Pt_M,Rb_M,S_M,Sb_M,Sc_M,Se_M,Si_M,Sr_M,Th_M,Tl_M,U_M,V_M,Y_M,Zn_M)
-      distance_M = data_plot1$distance
-      elements_M = switch(input$elements,
-                          "Ni"= data_plot1$Ni_M,
-                          "Ag"= data_plot1$Ag_M,
-                          "Al"=data_plot1$Al_M,
-                          "As"=data_plot1$Au_M,
-                          "Au"=data_plot1$Au_M,
-                          "B"=data_plot1$B_M,
-                          "Ba"=data_plot1$Ba_M,
-                          "Be"=data_plot1$Be_M,
-                          "Bi"=data_plot1$Bi_M,
-                          "Ca"=data_plot1$Ca_M,
-                          "Cd"=data_plot1$Cd_M,
-                          "Co"=data_plot1$Co_M,
-                          "Cr"=data_plot1$Cr_M,
-                          "Cu"=data_plot1$Cu_M,
-                          "Fe"=data_plot1$Fe_M,
-                          "Hg"=data_plot1$Hg_M,
-                          "K"=data_plot1$K_M,
-                          "La"=data_plot1$La_M,
-                          "Mg"=data_plot1$Mg_M,
-                          "Mn"=data_plot1$Mn_M,
-                          "Mo"=data_plot1$Mo_M,
-                          "Na"=data_plot1$Na_M,
-                          "Ni"=data_plot1$Ni_M,
-                          "P"=data_plot1$P_M,
-                          "Pb"=data_plot1$Pb_M,
-                          "Pd"=data_plot1$Pd_M,
-                          "Pt"=data_plot1$Pt_M,
-                          "Rb"=data_plot1$Rb_M,
-                          "S"=data_plot1$S_M,
-                          "Sb"=data_plot1$Sb_M,
-                          "Sc"=data_plot1$Sc_M,
-                          "Se"=data_plot1$Se_M,
-                          "Si"=data_plot1$Si_M,
-                          "Sr"=data_plot1$Sr_M,
-                          "Th"=data_plot1$Th_M,
-                          "Tl"=data_plot1$Tl_M,
-                          "U"=data_plot1$U_M,
-                          "V"=data_plot1$V_M,
-                          "Y"=data_plot1$Y_M,
-                          "Zn"=data_plot1$Zn)
-      data_plot2 = ohorizon_locin
-      distance_Z = ohorizon_locin$distance
-      elements_Z <- switch(input$elements,
-                           "Ni"= ohorizon_locin$Ni,
-                           "Ag"= ohorizon_locin$Ag,
-                           "Al"=ohorizon_locin$Al,
-                           "As"=ohorizon_locin$Au,
-                           "Au"=ohorizon_locin$Au,
-                           "B"=ohorizon_locin$B,
-                           "Ba"=ohorizon_locin$Ba,
-                           "Be"=ohorizon_locin$Be,
-                           "Bi"=ohorizon_locin$Bi,
-                           "Ca"=ohorizon_locin$Ca,
-                           "Cd"=ohorizon_locin$Cd,
-                           "Co"=ohorizon_locin$Co,
-                           "Cr"=ohorizon_locin$Cr,
-                           "Cu"=ohorizon_locin$Cu,
-                           "Fe"=ohorizon_locin$Fe,
-                           "Hg"=ohorizon_locin$Hg,
-                           "K"=ohorizon_locin$K,
-                           "La"=ohorizon_locin$La,
-                           "Mg"=ohorizon_locin$Mg,
-                           "Mn"=ohorizon_locin$Mn,
-                           "Mo"=ohorizon_locin$Mo,
-                           "Na"=ohorizon_locin$Na,
-                           "Ni"=ohorizon_locin$Ni,
-                           "P"=ohorizon_locin$P,
-                           "Pb"=ohorizon_locin$Pb,
-                           "Pd"=ohorizon_locin$Pd,
-                           "Pt"=ohorizon_locin$Pt,
-                           "Rb"=ohorizon_locin$Rb,
-                           "S"=ohorizon_locin$S,
-                           "Sb"=ohorizon_locin$Sb,
-                           "Sc"=ohorizon_locin$Sc,
-                           "Se"=ohorizon_locin$Se,
-                           "Si"=ohorizon_locin$Si,
-                           "Sr"=ohorizon_locin$Sr,
-                           "Th"=ohorizon_locin$Th,
-                           "Tl"=ohorizon_locin$Tl,
-                           "U"=ohorizon_locin$U,
-                           "V"=ohorizon_locin$V,
-                           "Y"=ohorizon_locin$Y,
-                           "Zn"=ohorizon_locin$Zn)
+                          "Ni"= ohorizon$Ni,
+                          "Ag"= ohorizon$Ag,
+                          "Al"=ohorizon$Al,
+                          "As"=ohorizon$Au,
+                          "Au"=ohorizon$Au,
+                          "B"=ohorizon$B,
+                          "Ba"=ohorizon$Ba,
+                          "Be"=ohorizon$Be,
+                          "Bi"=ohorizon$Bi,
+                          "Ca"=ohorizon$Ca,
+                          "Cd"=ohorizon$Cd,
+                          "Co"=ohorizon$Co,
+                          "Cr"=ohorizon$Cr,
+                          "Cu"=ohorizon$Cu,
+                          "Fe"=ohorizon$Fe,
+                          "Hg"=ohorizon$Hg,
+                          "K"=ohorizon$K,
+                          "La"=ohorizon$La,
+                          "Mg"=ohorizon$Mg,
+                          "Mn"=ohorizon$Mn,
+                          "Mo"=ohorizon$Mo,
+                          "Na"=ohorizon$Na,
+                          "Ni"=ohorizon$Ni,
+                          "P"=ohorizon$P,
+                          "Pb"=ohorizon$Pb,
+                          "Pd"=ohorizon$Pd,
+                          "Pt"=ohorizon$Pt,
+                          "Rb"=ohorizon$Rb,
+                          "S"=ohorizon$S,
+                          "Sb"=ohorizon$Sb,
+                          "Sc"=ohorizon$Sc,
+                          "Se"=ohorizon$Se,
+                          "Si"=ohorizon$Si,
+                          "Sr"=ohorizon$Sr,
+                          "Th"=ohorizon$Th,
+                          "Tl"=ohorizon$Tl,
+                          "U"=ohorizon$U,
+                          "V"=ohorizon$V,
+                          "Y"=ohorizon$Y,
+                          "Zn"=ohorizon$Zn)
+      
     }
     if (input$Measurements == "B-horizon"){
       elemets <- switch(input$elements,
@@ -606,178 +612,47 @@ server <- function(input, output) {
                         "Y"=bhorizon$Y,
                         "Zn"=bhorizon$Zn)
       elements2 <- switch(input$elements2,
-                        "Ni"= bhorizon$Ni,
-                        "Ag"= bhorizon$Ag,
-                        "Al"=bhorizon$Al,
-                        "As"=bhorizon$Au,
-                        "Au"=bhorizon$Au,
-                        "B"=bhorizon$B,
-                        "Ba"=bhorizon$Ba,
-                        "Be"=bhorizon$Be,
-                        "Bi"=bhorizon$Bi,
-                        "Ca"=bhorizon$Ca,
-                        "Cd"=bhorizon$Cd,
-                        "Co"=bhorizon$Co,
-                        "Cr"=bhorizon$Cr,
-                        "Cu"=bhorizon$Cu,
-                        "Fe"=bhorizon$Fe,
-                        "Hg"=bhorizon$Hg,
-                        "K"=bhorizon$K,
-                        "La"=bhorizon$La,
-                        "Mg"=bhorizon$Mg,
-                        "Mn"=bhorizon$Mn,
-                        "Mo"=bhorizon$Mo,
-                        "Na"=bhorizon$Na,
-                        "Ni"=bhorizon$Ni,
-                        "P"=bhorizon$P,
-                        "Pb"=bhorizon$Pb,
-                        "Pd"=bhorizon$Pd,
-                        "Pt"=bhorizon$Pt,
-                        "Rb"=bhorizon$Rb,
-                        "S"=bhorizon$S,
-                        "Sb"=bhorizon$Sb,
-                        "Sc"=bhorizon$Sc,
-                        "Se"=bhorizon$Se,
-                        "Si"=bhorizon$Si,
-                        "Sr"=bhorizon$Sr,
-                        "Th"=bhorizon$Th,
-                        "Tl"=bhorizon$Tl,
-                        "U"=bhorizon$U,
-                        "V"=bhorizon$V,
-                        "Y"=bhorizon$Y,
-                        "Zn"=bhorizon$Zn)
+                          "Ni"= bhorizon$Ni,
+                          "Ag"= bhorizon$Ag,
+                          "Al"=bhorizon$Al,
+                          "As"=bhorizon$Au,
+                          "Au"=bhorizon$Au,
+                          "B"=bhorizon$B,
+                          "Ba"=bhorizon$Ba,
+                          "Be"=bhorizon$Be,
+                          "Bi"=bhorizon$Bi,
+                          "Ca"=bhorizon$Ca,
+                          "Cd"=bhorizon$Cd,
+                          "Co"=bhorizon$Co,
+                          "Cr"=bhorizon$Cr,
+                          "Cu"=bhorizon$Cu,
+                          "Fe"=bhorizon$Fe,
+                          "Hg"=bhorizon$Hg,
+                          "K"=bhorizon$K,
+                          "La"=bhorizon$La,
+                          "Mg"=bhorizon$Mg,
+                          "Mn"=bhorizon$Mn,
+                          "Mo"=bhorizon$Mo,
+                          "Na"=bhorizon$Na,
+                          "Ni"=bhorizon$Ni,
+                          "P"=bhorizon$P,
+                          "Pb"=bhorizon$Pb,
+                          "Pd"=bhorizon$Pd,
+                          "Pt"=bhorizon$Pt,
+                          "Rb"=bhorizon$Rb,
+                          "S"=bhorizon$S,
+                          "Sb"=bhorizon$Sb,
+                          "Sc"=bhorizon$Sc,
+                          "Se"=bhorizon$Se,
+                          "Si"=bhorizon$Si,
+                          "Sr"=bhorizon$Sr,
+                          "Th"=bhorizon$Th,
+                          "Tl"=bhorizon$Tl,
+                          "U"=bhorizon$U,
+                          "V"=bhorizon$V,
+                          "Y"=bhorizon$Y,
+                          "Zn"=bhorizon$Zn)
       
-      X_range = bhorizon$long[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Y_range = bhorizon$lat[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Ni_M= bhorizon$Ni[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Ag_M= bhorizon$Ag[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Al_M=bhorizon$Al[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      As_M=bhorizon$Au[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Au_M=bhorizon$Au[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      B_M=bhorizon$B[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]                     
-      Ba_M=bhorizon$Ba[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Be_M=bhorizon$Be[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Bi_M=bhorizon$Bi[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Ca_M=bhorizon$Ca[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Cd_M=bhorizon$Cd[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Co_M=bhorizon$Co[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Cr_M=bhorizon$Cr[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Cu_M=bhorizon$Cu[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Fe_M=bhorizon$Fe[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Hg_M=bhorizon$Hg[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      K_M=bhorizon$K[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]                      
-      La_M=bhorizon$La[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Mg_M=bhorizon$Mg[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Mn_M=bhorizon$Mn[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Mo_M=bhorizon$Mo[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Na_M=bhorizon$Na[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Ni_M=bhorizon$Ni[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      P_M=bhorizon$P[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Pb_M=bhorizon$Pb[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Pd_M=bhorizon$Pd[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Pt_M=bhorizon$Pt[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Rb_M=bhorizon$Rb[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      S_M=bhorizon$S[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]                      
-      Sb_M=bhorizon$Sb[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Sc_M=bhorizon$Sc[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Se_M=bhorizon$Se[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Si_M=bhorizon$Si[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Sr_M=bhorizon$Sr[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Th_M=bhorizon$Th[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Tl_M=bhorizon$Tl[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      U_M=bhorizon$U[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      V_M=bhorizon$V[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Y_M=bhorizon$Y[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      Zn_M=bhorizon$Zn[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]
-      distance = (bhorizon$XCOO[(bhorizon$lat>67.46288) & (bhorizon$lat < 68.35282)]-753970)/1000
-      data_plot1 = data.frame(X_range,Y_range,distance,Ni_M,Ag_M, Al_M,As_M, Au_M,B_M,Ba_M,Be_M,Bi_M,Ca_M,Cd_M,Co_M,
-                              Cr_M,Cu_M,Fe_M,Hg_M,K_M,La_M,Mg_M,Mn_M,Mo_M,Na_M,Ni_M,P_M,
-                              Pb_M,Pd_M,Pt_M,Rb_M,S_M,Sb_M,Sc_M,Se_M,Si_M,Sr_M,Th_M,Tl_M,U_M,V_M,Y_M,Zn_M)
-      distance_M = data_plot1$distance
-      elements_M = switch(input$elements,
-                          "Ni"= data_plot1$Ni_M,
-                          "Ag"= data_plot1$Ag_M,
-                          "Al"=data_plot1$Al_M,
-                          "As"=data_plot1$Au_M,
-                          "Au"=data_plot1$Au_M,
-                          "B"=data_plot1$B_M,
-                          "Ba"=data_plot1$Ba_M,
-                          "Be"=data_plot1$Be_M,
-                          "Bi"=data_plot1$Bi_M,
-                          "Ca"=data_plot1$Ca_M,
-                          "Cd"=data_plot1$Cd_M,
-                          "Co"=data_plot1$Co_M,
-                          "Cr"=data_plot1$Cr_M,
-                          "Cu"=data_plot1$Cu_M,
-                          "Fe"=data_plot1$Fe_M,
-                          "Hg"=data_plot1$Hg_M,
-                          "K"=data_plot1$K_M,
-                          "La"=data_plot1$La_M,
-                          "Mg"=data_plot1$Mg_M,
-                          "Mn"=data_plot1$Mn_M,
-                          "Mo"=data_plot1$Mo_M,
-                          "Na"=data_plot1$Na_M,
-                          "Ni"=data_plot1$Ni_M,
-                          "P"=data_plot1$P_M,
-                          "Pb"=data_plot1$Pb_M,
-                          "Pd"=data_plot1$Pd_M,
-                          "Pt"=data_plot1$Pt_M,
-                          "Rb"=data_plot1$Rb_M,
-                          "S"=data_plot1$S_M,
-                          "Sb"=data_plot1$Sb_M,
-                          "Sc"=data_plot1$Sc_M,
-                          "Se"=data_plot1$Se_M,
-                          "Si"=data_plot1$Si_M,
-                          "Sr"=data_plot1$Sr_M,
-                          "Th"=data_plot1$Th_M,
-                          "Tl"=data_plot1$Tl_M,
-                          "U"=data_plot1$U_M,
-                          "V"=data_plot1$V_M,
-                          "Y"=data_plot1$Y_M,
-                          "Zn"=data_plot1$Zn)
-      data_plot2 = bhorizon_locin
-      distance_Z = bhorizon_locin$distance
-      elements_Z <- switch(input$elements,
-                           "Ni"= bhorizon_locin$Ni,
-                           "Ag"= bhorizon_locin$Ag,
-                           "Al"=bhorizon_locin$Al,
-                           "As"=bhorizon_locin$Au,
-                           "Au"=bhorizon_locin$Au,
-                           "B"=bhorizon_locin$B,
-                           "Ba"=bhorizon_locin$Ba,
-                           "Be"=bhorizon_locin$Be,
-                           "Bi"=bhorizon_locin$Bi,
-                           "Ca"=bhorizon_locin$Ca,
-                           "Cd"=bhorizon_locin$Cd,
-                           "Co"=bhorizon_locin$Co,
-                           "Cr"=bhorizon_locin$Cr,
-                           "Cu"=bhorizon_locin$Cu,
-                           "Fe"=bhorizon_locin$Fe,
-                           "Hg"=bhorizon_locin$Hg,
-                           "K"=bhorizon_locin$K,
-                           "La"=bhorizon_locin$La,
-                           "Mg"=bhorizon_locin$Mg,
-                           "Mn"=bhorizon_locin$Mn,
-                           "Mo"=bhorizon_locin$Mo,
-                           "Na"=bhorizon_locin$Na,
-                           "Ni"=bhorizon_locin$Ni,
-                           "P"=bhorizon_locin$P,
-                           "Pb"=bhorizon_locin$Pb,
-                           "Pd"=bhorizon_locin$Pd,
-                           "Pt"=bhorizon_locin$Pt,
-                           "Rb"=bhorizon_locin$Rb,
-                           "S"=bhorizon_locin$S,
-                           "Sb"=bhorizon_locin$Sb,
-                           "Sc"=bhorizon_locin$Sc,
-                           "Se"=bhorizon_locin$Se,
-                           "Si"=bhorizon_locin$Si,
-                           "Sr"=bhorizon_locin$Sr,
-                           "Th"=bhorizon_locin$Th,
-                           "Tl"=bhorizon_locin$Tl,
-                           "U"=bhorizon_locin$U,
-                           "V"=bhorizon_locin$V,
-                           "Y"=bhorizon_locin$Y,
-                           "Zn"=bhorizon_locin$Zn)
     }
     if (input$Measurements == "C-horizon"){
       elemets <- switch(input$elements,
@@ -822,177 +697,47 @@ server <- function(input, output) {
                         "Y"=chorizon$Y,
                         "Zn"=chorizon$Zn)
       elements2 <- switch(input$elements2,
-                        "Ni"= chorizon$Ni,
-                        "Ag"= chorizon$Ag,
-                        "Al"=chorizon$Al,
-                        "As"=chorizon$Au,
-                        "Au"=chorizon$Au,
-                        "B"=chorizon$B,
-                        "Ba"=chorizon$Ba,
-                        "Be"=chorizon$Be,
-                        "Bi"=chorizon$Bi,
-                        "Ca"=chorizon$Ca,
-                        "Cd"=chorizon$Cd,
-                        "Co"=chorizon$Co,
-                        "Cr"=chorizon$Cr,
-                        "Cu"=chorizon$Cu,
-                        "Fe"=chorizon$Fe,
-                        "Hg"=chorizon$Hg,
-                        "K"=chorizon$K,
-                        "La"=chorizon$La,
-                        "Mg"=chorizon$Mg,
-                        "Mn"=chorizon$Mn,
-                        "Mo"=chorizon$Mo,
-                        "Na"=chorizon$Na,
-                        "Ni"=chorizon$Ni,
-                        "P"=chorizon$P,
-                        "Pb"=chorizon$Pb,
-                        "Pd"=chorizon$Pd,
-                        "Pt"=chorizon$Pt,
-                        "Rb"=chorizon$Rb,
-                        "S"=chorizon$S,
-                        "Sb"=chorizon$Sb,
-                        "Sc"=chorizon$Sc,
-                        "Se"=chorizon$Se,
-                        "Si"=chorizon$Si,
-                        "Sr"=chorizon$Sr,
-                        "Th"=chorizon$Th,
-                        "Tl"=chorizon$Tl,
-                        "U"=chorizon$U,
-                        "V"=chorizon$V,
-                        "Y"=chorizon$Y,
-                        "Zn"=chorizon$Zn)
-      X_range = chorizon$long[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Y_range = chorizon$lat[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Ni_M= chorizon$Ni[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Ag_M= chorizon$Ag[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Al_M=chorizon$Al[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      As_M=chorizon$Au[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Au_M=chorizon$Au[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      B_M=chorizon$B[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]                     
-      Ba_M=chorizon$Ba[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Be_M=chorizon$Be[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Bi_M=chorizon$Bi[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Ca_M=chorizon$Ca[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Cd_M=chorizon$Cd[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Co_M=chorizon$Co[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Cr_M=chorizon$Cr[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Cu_M=chorizon$Cu[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Fe_M=chorizon$Fe[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Hg_M=chorizon$Hg[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      K_M=chorizon$K[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]                      
-      La_M=chorizon$La[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Mg_M=chorizon$Mg[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Mn_M=chorizon$Mn[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Mo_M=chorizon$Mo[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Na_M=chorizon$Na[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Ni_M=chorizon$Ni[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      P_M=chorizon$P[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Pb_M=chorizon$Pb[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Pd_M=chorizon$Pd[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Pt_M=chorizon$Pt[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Rb_M=chorizon$Rb[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      S_M=chorizon$S[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]                      
-      Sb_M=chorizon$Sb[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Sc_M=chorizon$Sc[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Se_M=chorizon$Se[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Si_M=chorizon$Si[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Sr_M=chorizon$Sr[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Th_M=chorizon$Th[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Tl_M=chorizon$Tl[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      U_M=chorizon$U[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      V_M=chorizon$V[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Y_M=chorizon$Y[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      Zn_M=chorizon$Zn[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]
-      distance = (chorizon$XCOO[(chorizon$lat>67.46288) & (chorizon$lat < 68.35282)]-753970)/1000
-      data_plot1 = data.frame(X_range,Y_range,distance,Ni_M,Ag_M, Al_M,As_M, Au_M,B_M,Ba_M,Be_M,Bi_M,Ca_M,Cd_M,Co_M,
-                              Cr_M,Cu_M,Fe_M,Hg_M,K_M,La_M,Mg_M,Mn_M,Mo_M,Na_M,Ni_M,P_M,
-                              Pb_M,Pd_M,Pt_M,Rb_M,S_M,Sb_M,Sc_M,Se_M,Si_M,Sr_M,Th_M,Tl_M,U_M,V_M,Y_M,Zn_M)
-      distance_M = data_plot1$distance
-      elements_M = switch(input$elements,
-                          "Ni"= data_plot1$Ni_M,
-                          "Ag"= data_plot1$Ag_M,
-                          "Al"=data_plot1$Al_M,
-                          "As"=data_plot1$Au_M,
-                          "Au"=data_plot1$Au_M,
-                          "B"=data_plot1$B_M,
-                          "Ba"=data_plot1$Ba_M,
-                          "Be"=data_plot1$Be_M,
-                          "Bi"=data_plot1$Bi_M,
-                          "Ca"=data_plot1$Ca_M,
-                          "Cd"=data_plot1$Cd_M,
-                          "Co"=data_plot1$Co_M,
-                          "Cr"=data_plot1$Cr_M,
-                          "Cu"=data_plot1$Cu_M,
-                          "Fe"=data_plot1$Fe_M,
-                          "Hg"=data_plot1$Hg_M,
-                          "K"=data_plot1$K_M,
-                          "La"=data_plot1$La_M,
-                          "Mg"=data_plot1$Mg_M,
-                          "Mn"=data_plot1$Mn_M,
-                          "Mo"=data_plot1$Mo_M,
-                          "Na"=data_plot1$Na_M,
-                          "Ni"=data_plot1$Ni_M,
-                          "P"=data_plot1$P_M,
-                          "Pb"=data_plot1$Pb_M,
-                          "Pd"=data_plot1$Pd_M,
-                          "Pt"=data_plot1$Pt_M,
-                          "Rb"=data_plot1$Rb_M,
-                          "S"=data_plot1$S_M,
-                          "Sb"=data_plot1$Sb_M,
-                          "Sc"=data_plot1$Sc_M,
-                          "Se"=data_plot1$Se_M,
-                          "Si"=data_plot1$Si_M,
-                          "Sr"=data_plot1$Sr_M,
-                          "Th"=data_plot1$Th_M,
-                          "Tl"=data_plot1$Tl_M,
-                          "U"=data_plot1$U_M,
-                          "V"=data_plot1$V_M,
-                          "Y"=data_plot1$Y_M,
-                          "Zn"=data_plot1$Zn)
-      data_plot2 = chorizon_locin
-      distance_Z = chorizon_locin$distance
-      elements_Z <- switch(input$elements,
-                           "Ni"= chorizon_locin$Ni,
-                           "Ag"= chorizon_locin$Ag,
-                           "Al"=chorizon_locin$Al,
-                           "As"=chorizon_locin$Au,
-                           "Au"=chorizon_locin$Au,
-                           "B"=chorizon_locin$B,
-                           "Ba"=chorizon_locin$Ba,
-                           "Be"=chorizon_locin$Be,
-                           "Bi"=chorizon_locin$Bi,
-                           "Ca"=chorizon_locin$Ca,
-                           "Cd"=chorizon_locin$Cd,
-                           "Co"=chorizon_locin$Co,
-                           "Cr"=chorizon_locin$Cr,
-                           "Cu"=chorizon_locin$Cu,
-                           "Fe"=chorizon_locin$Fe,
-                           "Hg"=chorizon_locin$Hg,
-                           "K"=chorizon_locin$K,
-                           "La"=chorizon_locin$La,
-                           "Mg"=chorizon_locin$Mg,
-                           "Mn"=chorizon_locin$Mn,
-                           "Mo"=chorizon_locin$Mo,
-                           "Na"=chorizon_locin$Na,
-                           "Ni"=chorizon_locin$Ni,
-                           "P"=chorizon_locin$P,
-                           "Pb"=chorizon_locin$Pb,
-                           "Pd"=chorizon_locin$Pd,
-                           "Pt"=chorizon_locin$Pt,
-                           "Rb"=chorizon_locin$Rb,
-                           "S"=chorizon_locin$S,
-                           "Sb"=chorizon_locin$Sb,
-                           "Sc"=chorizon_locin$Sc,
-                           "Se"=chorizon_locin$Se,
-                           "Si"=chorizon_locin$Si,
-                           "Sr"=chorizon_locin$Sr,
-                           "Th"=chorizon_locin$Th,
-                           "Tl"=chorizon_locin$Tl,
-                           "U"=chorizon_locin$U,
-                           "V"=chorizon_locin$V,
-                           "Y"=chorizon_locin$Y,
-                           "Zn"=chorizon_locin$Zn)
+                          "Ni"= chorizon$Ni,
+                          "Ag"= chorizon$Ag,
+                          "Al"=chorizon$Al,
+                          "As"=chorizon$Au,
+                          "Au"=chorizon$Au,
+                          "B"=chorizon$B,
+                          "Ba"=chorizon$Ba,
+                          "Be"=chorizon$Be,
+                          "Bi"=chorizon$Bi,
+                          "Ca"=chorizon$Ca,
+                          "Cd"=chorizon$Cd,
+                          "Co"=chorizon$Co,
+                          "Cr"=chorizon$Cr,
+                          "Cu"=chorizon$Cu,
+                          "Fe"=chorizon$Fe,
+                          "Hg"=chorizon$Hg,
+                          "K"=chorizon$K,
+                          "La"=chorizon$La,
+                          "Mg"=chorizon$Mg,
+                          "Mn"=chorizon$Mn,
+                          "Mo"=chorizon$Mo,
+                          "Na"=chorizon$Na,
+                          "Ni"=chorizon$Ni,
+                          "P"=chorizon$P,
+                          "Pb"=chorizon$Pb,
+                          "Pd"=chorizon$Pd,
+                          "Pt"=chorizon$Pt,
+                          "Rb"=chorizon$Rb,
+                          "S"=chorizon$S,
+                          "Sb"=chorizon$Sb,
+                          "Sc"=chorizon$Sc,
+                          "Se"=chorizon$Se,
+                          "Si"=chorizon$Si,
+                          "Sr"=chorizon$Sr,
+                          "Th"=chorizon$Th,
+                          "Tl"=chorizon$Tl,
+                          "U"=chorizon$U,
+                          "V"=chorizon$V,
+                          "Y"=chorizon$Y,
+                          "Zn"=chorizon$Zn)
+      
     }
     if (input$Measurements == "Topsoil"){
       elemets <- switch(input$elements,
@@ -1037,135 +782,648 @@ server <- function(input, output) {
                         "Y"=topsoil$Y,
                         "Zn"=topsoil$Zn)
       elements2 <- switch(input$elements2,
-                        "Ni"= topsoil$Ni,
-                        "Ag"= topsoil$Ag,
-                        "Al"=topsoil$Al,
-                        "As"=topsoil$Au,
-                        "Au"=topsoil$Au,
-                        "B"=topsoil$B,
-                        "Ba"=topsoil$Ba,
-                        "Be"=topsoil$Be,
-                        "Bi"=topsoil$Bi,
-                        "Ca"=topsoil$Ca,
-                        "Cd"=topsoil$Cd,
-                        "Co"=topsoil$Co,
-                        "Cr"=topsoil$Cr,
-                        "Cu"=topsoil$Cu,
-                        "Fe"=topsoil$Fe,
-                        "Hg"=topsoil$Hg,
-                        "K"=topsoil$K,
-                        "La"=topsoil$La,
-                        "Mg"=topsoil$Mg,
-                        "Mn"=topsoil$Mn,
-                        "Mo"=topsoil$Mo,
-                        "Na"=topsoil$Na,
-                        "Ni"=topsoil$Ni,
-                        "P"=topsoil$P,
-                        "Pb"=topsoil$Pb,
-                        "Pd"=topsoil$Pd,
-                        "Pt"=topsoil$Pt,
-                        "Rb"=topsoil$Rb,
-                        "S"=topsoil$S,
-                        "Sb"=topsoil$Sb,
-                        "Sc"=topsoil$Sc,
-                        "Se"=topsoil$Se,
-                        "Si"=topsoil$Si,
-                        "Sr"=topsoil$Sr,
-                        "Th"=topsoil$Th,
-                        "Tl"=topsoil$Tl,
-                        "U"=topsoil$U,
-                        "V"=topsoil$V,
-                        "Y"=topsoil$Y,
-                        "Zn"=topsoil$Zn)
+                          "Ni"= topsoil$Ni,
+                          "Ag"= topsoil$Ag,
+                          "Al"=topsoil$Al,
+                          "As"=topsoil$Au,
+                          "Au"=topsoil$Au,
+                          "B"=topsoil$B,
+                          "Ba"=topsoil$Ba,
+                          "Be"=topsoil$Be,
+                          "Bi"=topsoil$Bi,
+                          "Ca"=topsoil$Ca,
+                          "Cd"=topsoil$Cd,
+                          "Co"=topsoil$Co,
+                          "Cr"=topsoil$Cr,
+                          "Cu"=topsoil$Cu,
+                          "Fe"=topsoil$Fe,
+                          "Hg"=topsoil$Hg,
+                          "K"=topsoil$K,
+                          "La"=topsoil$La,
+                          "Mg"=topsoil$Mg,
+                          "Mn"=topsoil$Mn,
+                          "Mo"=topsoil$Mo,
+                          "Na"=topsoil$Na,
+                          "Ni"=topsoil$Ni,
+                          "P"=topsoil$P,
+                          "Pb"=topsoil$Pb,
+                          "Pd"=topsoil$Pd,
+                          "Pt"=topsoil$Pt,
+                          "Rb"=topsoil$Rb,
+                          "S"=topsoil$S,
+                          "Sb"=topsoil$Sb,
+                          "Sc"=topsoil$Sc,
+                          "Se"=topsoil$Se,
+                          "Si"=topsoil$Si,
+                          "Sr"=topsoil$Sr,
+                          "Th"=topsoil$Th,
+                          "Tl"=topsoil$Tl,
+                          "U"=topsoil$U,
+                          "V"=topsoil$V,
+                          "Y"=topsoil$Y,
+                          "Zn"=topsoil$Zn)
       
-      X_range = topsoil$long[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Y_range = topsoil$lat[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Ni_M= topsoil$Ni[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Ag_M= topsoil$Ag[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Al_M=topsoil$Al[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      As_M=topsoil$Au[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Au_M=topsoil$Au[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      B_M=topsoil$B[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]                     
-      Ba_M=topsoil$Ba[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Be_M=topsoil$Be[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Bi_M=topsoil$Bi[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Ca_M=topsoil$Ca[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Cd_M=topsoil$Cd[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Co_M=topsoil$Co[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Cr_M=topsoil$Cr[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Cu_M=topsoil$Cu[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Fe_M=topsoil$Fe[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Hg_M=topsoil$Hg[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      K_M=topsoil$K[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]                      
-      La_M=topsoil$La[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Mg_M=topsoil$Mg[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Mn_M=topsoil$Mn[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Mo_M=topsoil$Mo[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Na_M=topsoil$Na[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Ni_M=topsoil$Ni[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      P_M=topsoil$P[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Pb_M=topsoil$Pb[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Pd_M=topsoil$Pd[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Pt_M=topsoil$Pt[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Rb_M=topsoil$Rb[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      S_M=topsoil$S[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]                      
-      Sb_M=topsoil$Sb[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Sc_M=topsoil$Sc[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Se_M=topsoil$Se[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Si_M=topsoil$Si[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Sr_M=topsoil$Sr[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Th_M=topsoil$Th[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Tl_M=topsoil$Tl[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      U_M=topsoil$U[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      V_M=topsoil$V[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Y_M=topsoil$Y[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      Zn_M=topsoil$Zn[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]
-      distance = (topsoil$XCOO[(topsoil$lat>67.46288) & (topsoil$lat < 68.35282)]-753970)/1000
-      data_plot1 = data.frame(X_range,Y_range,distance,Ni_M,Ag_M, Al_M,As_M, Au_M,B_M,Ba_M,Be_M,Bi_M,Ca_M,Cd_M,Co_M,
-                              Cr_M,Cu_M,Fe_M,Hg_M,K_M,La_M,Mg_M,Mn_M,Mo_M,Na_M,Ni_M,P_M,
-                              Pb_M,Pd_M,Pt_M,Rb_M,S_M,Sb_M,Sc_M,Se_M,Si_M,Sr_M,Th_M,Tl_M,U_M,V_M,Y_M,Zn_M)
-      distance_M = data_plot1$distance
-      elements_M = switch(input$elements,
-                          "Ni"= data_plot1$Ni_M,
-                          "Ag"= data_plot1$Ag_M,
-                          "Al"=data_plot1$Al_M,
-                          "As"=data_plot1$Au_M,
-                          "Au"=data_plot1$Au_M,
-                          "B"=data_plot1$B_M,
-                          "Ba"=data_plot1$Ba_M,
-                          "Be"=data_plot1$Be_M,
-                          "Bi"=data_plot1$Bi_M,
-                          "Ca"=data_plot1$Ca_M,
-                          "Cd"=data_plot1$Cd_M,
-                          "Co"=data_plot1$Co_M,
-                          "Cr"=data_plot1$Cr_M,
-                          "Cu"=data_plot1$Cu_M,
-                          "Fe"=data_plot1$Fe_M,
-                          "Hg"=data_plot1$Hg_M,
-                          "K"=data_plot1$K_M,
-                          "La"=data_plot1$La_M,
-                          "Mg"=data_plot1$Mg_M,
-                          "Mn"=data_plot1$Mn_M,
-                          "Mo"=data_plot1$Mo_M,
-                          "Na"=data_plot1$Na_M,
-                          "Ni"=data_plot1$Ni_M,
-                          "P"=data_plot1$P_M,
-                          "Pb"=data_plot1$Pb_M,
-                          "Pd"=data_plot1$Pd_M,
-                          "Pt"=data_plot1$Pt_M,
-                          "Rb"=data_plot1$Rb_M,
-                          "S"=data_plot1$S_M,
-                          "Sb"=data_plot1$Sb_M,
-                          "Sc"=data_plot1$Sc_M,
-                          "Se"=data_plot1$Se_M,
-                          "Si"=data_plot1$Si_M,
-                          "Sr"=data_plot1$Sr_M,
-                          "Th"=data_plot1$Th_M,
-                          "Tl"=data_plot1$Tl_M,
-                          "U"=data_plot1$U_M,
-                          "V"=data_plot1$V_M,
-                          "Y"=data_plot1$Y_M,
-                          "Zn"=data_plot1$Zn)
+    }
+    
+    p3 <- ggplot(data_set,aes(x=elemets,y=elements2))+geom_point()+
+      labs(title = paste("the relationship between",input$elements,"and",input$elements2),
+           x = paste(input$elements,"in",input$Measurements,"[mg/kg]"),
+           y = paste(input$elements2,"in",input$Measurements,"[mg/kg]"),
+           caption ="displayed in real value")+
+      theme_gdocs()+ scale_color_gdocs()
+    
+    
+    p4 <- ggplot(data_set,aes(x=log10(elemets),y=log10(elements2))) + geom_point()+
+      labs(title = paste("the relationship between",input$elements,"and",input$elements2),
+           x = paste(input$elements,"in",input$Measurements,"[mg/kg]"),
+           y = paste(input$elements2,"in",input$Measurements,"[mg/kg]"),
+           caption ="displayed in log10(x) value")+
+      theme_gdocs()+ scale_color_gdocs()
+    grid.arrange(p3,p4,ncol=2)
+  },height = 400, width = 1000)
+  
+  output$gmplot3  <- renderPlot({    
+    data_set <- switch(input$Measurements, 
+                       "Moss" = moss,
+                       "O-horizon"= ohorizon,
+                       "B-horizon"= bhorizon,
+                       "C-horizon"= chorizon,
+                       "Topsoil"= topsoil)
+    
+    if (input$Measurements == "Moss"){
+      
+      data_plot1 = moss_EW
+      distance_M = moss_EW$distance
+      elements_M <- switch(input$elements,
+                           "Ni"= moss_EW$Ni,
+                           "Ag"= moss_EW$Ag,
+                           "Al"=moss_EW$Al,
+                           "As"=moss_EW$Au,
+                           "Au"=moss_EW$Au,
+                           "B"=moss_EW$B,
+                           "Ba"=moss_EW$Ba,
+                           "Be"=moss_EW$Be,
+                           "Bi"=moss_EW$Bi,
+                           "Ca"=moss_EW$Ca,
+                           "Cd"=moss_EW$Cd,
+                           "Co"=moss_EW$Co,
+                           "Cr"=moss_EW$Cr,
+                           "Cu"=moss_EW$Cu,
+                           "Fe"=moss_EW$Fe,
+                           "Hg"=moss_EW$Hg,
+                           "K"=moss_EW$K,
+                           "La"=moss_EW$La,
+                           "Mg"=moss_EW$Mg,
+                           "Mn"=moss_EW$Mn,
+                           "Mo"=moss_EW$Mo,
+                           "Na"=moss_EW$Na,
+                           "Ni"=moss_EW$Ni,
+                           "P"=moss_EW$P,
+                           "Pb"=moss_EW$Pb,
+                           "Pd"=moss_EW$Pd,
+                           "Pt"=moss_EW$Pt,
+                           "Rb"=moss_EW$Rb,
+                           "S"=moss_EW$S,
+                           "Sb"=moss_EW$Sb,
+                           "Sc"=moss_EW$Sc,
+                           "Se"=moss_EW$Se,
+                           "Si"=moss_EW$Si,
+                           "Sr"=moss_EW$Sr,
+                           "Th"=moss_EW$Th,
+                           "Tl"=moss_EW$Tl,
+                           "U"=moss_EW$U,
+                           "V"=moss_EW$V,
+                           "Y"=moss_EW$Y,
+                           "Zn"=moss_EW$Zn)
+      data_plot2 = moss_locin
+      distance_Z = moss_locin$distance
+      elements_Z <- switch(input$elements,
+                           "Ni"= moss_locin$Ni,
+                           "Ag"= moss_locin$Ag,
+                           "Al"=moss_locin$Al,
+                           "As"=moss_locin$Au,
+                           "Au"=moss_locin$Au,
+                           "B"=moss_locin$B,
+                           "Ba"=moss_locin$Ba,
+                           "Be"=moss_locin$Be,
+                           "Bi"=moss_locin$Bi,
+                           "Ca"=moss_locin$Ca,
+                           "Cd"=moss_locin$Cd,
+                           "Co"=moss_locin$Co,
+                           "Cr"=moss_locin$Cr,
+                           "Cu"=moss_locin$Cu,
+                           "Fe"=moss_locin$Fe,
+                           "Hg"=moss_locin$Hg,
+                           "K"=moss_locin$K,
+                           "La"=moss_locin$La,
+                           "Mg"=moss_locin$Mg,
+                           "Mn"=moss_locin$Mn,
+                           "Mo"=moss_locin$Mo,
+                           "Na"=moss_locin$Na,
+                           "Ni"=moss_locin$Ni,
+                           "P"=moss_locin$P,
+                           "Pb"=moss_locin$Pb,
+                           "Pd"=moss_locin$Pd,
+                           "Pt"=moss_locin$Pt,
+                           "Rb"=moss_locin$Rb,
+                           "S"=moss_locin$S,
+                           "Sb"=moss_locin$Sb,
+                           "Sc"=moss_locin$Sc,
+                           "Se"=moss_locin$Se,
+                           "Si"=moss_locin$Si,
+                           "Sr"=moss_locin$Sr,
+                           "Th"=moss_locin$Th,
+                           "Tl"=moss_locin$Tl,
+                           "U"=moss_locin$U,
+                           "V"=moss_locin$V,
+                           "Y"=moss_locin$Y,
+                           "Zn"=moss_locin$Zn)
+      data_plot3 = moss_NS
+      distance_S = moss_NS$distance
+      elements_S <- switch(input$elements,
+                           "Ni"= moss_NS$Ni,
+                           "Ag"= moss_NS$Ag,
+                           "Al"=moss_NS$Al,
+                           "As"=moss_NS$Au,
+                           "Au"=moss_NS$Au,
+                           "B"=moss_NS$B,
+                           "Ba"=moss_NS$Ba,
+                           "Be"=moss_NS$Be,
+                           "Bi"=moss_NS$Bi,
+                           "Ca"=moss_NS$Ca,
+                           "Cd"=moss_NS$Cd,
+                           "Co"=moss_NS$Co,
+                           "Cr"=moss_NS$Cr,
+                           "Cu"=moss_NS$Cu,
+                           "Fe"=moss_NS$Fe,
+                           "Hg"=moss_NS$Hg,
+                           "K"=moss_NS$K,
+                           "La"=moss_NS$La,
+                           "Mg"=moss_NS$Mg,
+                           "Mn"=moss_NS$Mn,
+                           "Mo"=moss_NS$Mo,
+                           "Na"=moss_NS$Na,
+                           "Ni"=moss_NS$Ni,
+                           "P"=moss_NS$P,
+                           "Pb"=moss_NS$Pb,
+                           "Pd"=moss_NS$Pd,
+                           "Pt"=moss_NS$Pt,
+                           "Rb"=moss_NS$Rb,
+                           "S"=moss_NS$S,
+                           "Sb"=moss_NS$Sb,
+                           "Sc"=moss_NS$Sc,
+                           "Se"=moss_NS$Se,
+                           "Si"=moss_NS$Si,
+                           "Sr"=moss_NS$Sr,
+                           "Th"=moss_NS$Th,
+                           "Tl"=moss_NS$Tl,
+                           "U"=moss_NS$U,
+                           "V"=moss_NS$V,
+                           "Y"=moss_NS$Y,
+                           "Zn"=moss_NS$Zn)
+      
+    }
+    if (input$Measurements == "O-horizon"){
+      
+      data_plot1 = ohorizon_EW
+      distance_M = ohorizon_EW$distance
+      elements_M <- switch(input$elements,
+                           "Ni"= ohorizon_EW$Ni,
+                           "Ag"= ohorizon_EW$Ag,
+                           "Al"=ohorizon_EW$Al,
+                           "As"=ohorizon_EW$Au,
+                           "Au"=ohorizon_EW$Au,
+                           "B"=ohorizon_EW$B,
+                           "Ba"=ohorizon_EW$Ba,
+                           "Be"=ohorizon_EW$Be,
+                           "Bi"=ohorizon_EW$Bi,
+                           "Ca"=ohorizon_EW$Ca,
+                           "Cd"=ohorizon_EW$Cd,
+                           "Co"=ohorizon_EW$Co,
+                           "Cr"=ohorizon_EW$Cr,
+                           "Cu"=ohorizon_EW$Cu,
+                           "Fe"=ohorizon_EW$Fe,
+                           "Hg"=ohorizon_EW$Hg,
+                           "K"=ohorizon_EW$K,
+                           "La"=ohorizon_EW$La,
+                           "Mg"=ohorizon_EW$Mg,
+                           "Mn"=ohorizon_EW$Mn,
+                           "Mo"=ohorizon_EW$Mo,
+                           "Na"=ohorizon_EW$Na,
+                           "Ni"=ohorizon_EW$Ni,
+                           "P"=ohorizon_EW$P,
+                           "Pb"=ohorizon_EW$Pb,
+                           "Pd"=ohorizon_EW$Pd,
+                           "Pt"=ohorizon_EW$Pt,
+                           "Rb"=ohorizon_EW$Rb,
+                           "S"=ohorizon_EW$S,
+                           "Sb"=ohorizon_EW$Sb,
+                           "Sc"=ohorizon_EW$Sc,
+                           "Se"=ohorizon_EW$Se,
+                           "Si"=ohorizon_EW$Si,
+                           "Sr"=ohorizon_EW$Sr,
+                           "Th"=ohorizon_EW$Th,
+                           "Tl"=ohorizon_EW$Tl,
+                           "U"=ohorizon_EW$U,
+                           "V"=ohorizon_EW$V,
+                           "Y"=ohorizon_EW$Y,
+                           "Zn"=ohorizon_EW$Zn)
+      data_plot2 = ohorizon_locin
+      distance_Z = ohorizon_locin$distance
+      elements_Z <- switch(input$elements,
+                           "Ni"= ohorizon_locin$Ni,
+                           "Ag"= ohorizon_locin$Ag,
+                           "Al"=ohorizon_locin$Al,
+                           "As"=ohorizon_locin$Au,
+                           "Au"=ohorizon_locin$Au,
+                           "B"=ohorizon_locin$B,
+                           "Ba"=ohorizon_locin$Ba,
+                           "Be"=ohorizon_locin$Be,
+                           "Bi"=ohorizon_locin$Bi,
+                           "Ca"=ohorizon_locin$Ca,
+                           "Cd"=ohorizon_locin$Cd,
+                           "Co"=ohorizon_locin$Co,
+                           "Cr"=ohorizon_locin$Cr,
+                           "Cu"=ohorizon_locin$Cu,
+                           "Fe"=ohorizon_locin$Fe,
+                           "Hg"=ohorizon_locin$Hg,
+                           "K"=ohorizon_locin$K,
+                           "La"=ohorizon_locin$La,
+                           "Mg"=ohorizon_locin$Mg,
+                           "Mn"=ohorizon_locin$Mn,
+                           "Mo"=ohorizon_locin$Mo,
+                           "Na"=ohorizon_locin$Na,
+                           "Ni"=ohorizon_locin$Ni,
+                           "P"=ohorizon_locin$P,
+                           "Pb"=ohorizon_locin$Pb,
+                           "Pd"=ohorizon_locin$Pd,
+                           "Pt"=ohorizon_locin$Pt,
+                           "Rb"=ohorizon_locin$Rb,
+                           "S"=ohorizon_locin$S,
+                           "Sb"=ohorizon_locin$Sb,
+                           "Sc"=ohorizon_locin$Sc,
+                           "Se"=ohorizon_locin$Se,
+                           "Si"=ohorizon_locin$Si,
+                           "Sr"=ohorizon_locin$Sr,
+                           "Th"=ohorizon_locin$Th,
+                           "Tl"=ohorizon_locin$Tl,
+                           "U"=ohorizon_locin$U,
+                           "V"=ohorizon_locin$V,
+                           "Y"=ohorizon_locin$Y,
+                           "Zn"=ohorizon_locin$Zn)
+      data_plot3 = ohorizon_NS
+      distance_S = ohorizon_NS$distance
+      elements_S <- switch(input$elements,
+                           "Ni"= ohorizon_NS$Ni,
+                           "Ag"= ohorizon_NS$Ag,
+                           "Al"=ohorizon_NS$Al,
+                           "As"=ohorizon_NS$Au,
+                           "Au"=ohorizon_NS$Au,
+                           "B"=ohorizon_NS$B,
+                           "Ba"=ohorizon_NS$Ba,
+                           "Be"=ohorizon_NS$Be,
+                           "Bi"=ohorizon_NS$Bi,
+                           "Ca"=ohorizon_NS$Ca,
+                           "Cd"=ohorizon_NS$Cd,
+                           "Co"=ohorizon_NS$Co,
+                           "Cr"=ohorizon_NS$Cr,
+                           "Cu"=ohorizon_NS$Cu,
+                           "Fe"=ohorizon_NS$Fe,
+                           "Hg"=ohorizon_NS$Hg,
+                           "K"=ohorizon_NS$K,
+                           "La"=ohorizon_NS$La,
+                           "Mg"=ohorizon_NS$Mg,
+                           "Mn"=ohorizon_NS$Mn,
+                           "Mo"=ohorizon_NS$Mo,
+                           "Na"=ohorizon_NS$Na,
+                           "Ni"=ohorizon_NS$Ni,
+                           "P"=ohorizon_NS$P,
+                           "Pb"=ohorizon_NS$Pb,
+                           "Pd"=ohorizon_NS$Pd,
+                           "Pt"=ohorizon_NS$Pt,
+                           "Rb"=ohorizon_NS$Rb,
+                           "S"=ohorizon_NS$S,
+                           "Sb"=ohorizon_NS$Sb,
+                           "Sc"=ohorizon_NS$Sc,
+                           "Se"=ohorizon_NS$Se,
+                           "Si"=ohorizon_NS$Si,
+                           "Sr"=ohorizon_NS$Sr,
+                           "Th"=ohorizon_NS$Th,
+                           "Tl"=ohorizon_NS$Tl,
+                           "U"=ohorizon_NS$U,
+                           "V"=ohorizon_NS$V,
+                           "Y"=ohorizon_NS$Y,
+                           "Zn"=ohorizon_NS$Zn)
+    }
+    if (input$Measurements == "B-horizon"){
+      
+      data_plot1 = bhorizon_EW
+      distance_M = bhorizon_EW$distance
+      elements_M <- switch(input$elements,
+                           "Ni"= bhorizon_EW$Ni,
+                           "Ag"= bhorizon_EW$Ag,
+                           "Al"=bhorizon_EW$Al,
+                           "As"=bhorizon_EW$Au,
+                           "Au"=bhorizon_EW$Au,
+                           "B"=bhorizon_EW$B,
+                           "Ba"=bhorizon_EW$Ba,
+                           "Be"=bhorizon_EW$Be,
+                           "Bi"=bhorizon_EW$Bi,
+                           "Ca"=bhorizon_EW$Ca,
+                           "Cd"=bhorizon_EW$Cd,
+                           "Co"=bhorizon_EW$Co,
+                           "Cr"=bhorizon_EW$Cr,
+                           "Cu"=bhorizon_EW$Cu,
+                           "Fe"=bhorizon_EW$Fe,
+                           "Hg"=bhorizon_EW$Hg,
+                           "K"=bhorizon_EW$K,
+                           "La"=bhorizon_EW$La,
+                           "Mg"=bhorizon_EW$Mg,
+                           "Mn"=bhorizon_EW$Mn,
+                           "Mo"=bhorizon_EW$Mo,
+                           "Na"=bhorizon_EW$Na,
+                           "Ni"=bhorizon_EW$Ni,
+                           "P"=bhorizon_EW$P,
+                           "Pb"=bhorizon_EW$Pb,
+                           "Pd"=bhorizon_EW$Pd,
+                           "Pt"=bhorizon_EW$Pt,
+                           "Rb"=bhorizon_EW$Rb,
+                           "S"=bhorizon_EW$S,
+                           "Sb"=bhorizon_EW$Sb,
+                           "Sc"=bhorizon_EW$Sc,
+                           "Se"=bhorizon_EW$Se,
+                           "Si"=bhorizon_EW$Si,
+                           "Sr"=bhorizon_EW$Sr,
+                           "Th"=bhorizon_EW$Th,
+                           "Tl"=bhorizon_EW$Tl,
+                           "U"=bhorizon_EW$U,
+                           "V"=bhorizon_EW$V,
+                           "Y"=bhorizon_EW$Y,
+                           "Zn"=bhorizon_EW$Zn)
+      data_plot2 = bhorizon_locin
+      distance_Z = bhorizon_locin$distance
+      elements_Z <- switch(input$elements,
+                           "Ni"= bhorizon_locin$Ni,
+                           "Ag"= bhorizon_locin$Ag,
+                           "Al"=bhorizon_locin$Al,
+                           "As"=bhorizon_locin$Au,
+                           "Au"=bhorizon_locin$Au,
+                           "B"=bhorizon_locin$B,
+                           "Ba"=bhorizon_locin$Ba,
+                           "Be"=bhorizon_locin$Be,
+                           "Bi"=bhorizon_locin$Bi,
+                           "Ca"=bhorizon_locin$Ca,
+                           "Cd"=bhorizon_locin$Cd,
+                           "Co"=bhorizon_locin$Co,
+                           "Cr"=bhorizon_locin$Cr,
+                           "Cu"=bhorizon_locin$Cu,
+                           "Fe"=bhorizon_locin$Fe,
+                           "Hg"=bhorizon_locin$Hg,
+                           "K"=bhorizon_locin$K,
+                           "La"=bhorizon_locin$La,
+                           "Mg"=bhorizon_locin$Mg,
+                           "Mn"=bhorizon_locin$Mn,
+                           "Mo"=bhorizon_locin$Mo,
+                           "Na"=bhorizon_locin$Na,
+                           "Ni"=bhorizon_locin$Ni,
+                           "P"=bhorizon_locin$P,
+                           "Pb"=bhorizon_locin$Pb,
+                           "Pd"=bhorizon_locin$Pd,
+                           "Pt"=bhorizon_locin$Pt,
+                           "Rb"=bhorizon_locin$Rb,
+                           "S"=bhorizon_locin$S,
+                           "Sb"=bhorizon_locin$Sb,
+                           "Sc"=bhorizon_locin$Sc,
+                           "Se"=bhorizon_locin$Se,
+                           "Si"=bhorizon_locin$Si,
+                           "Sr"=bhorizon_locin$Sr,
+                           "Th"=bhorizon_locin$Th,
+                           "Tl"=bhorizon_locin$Tl,
+                           "U"=bhorizon_locin$U,
+                           "V"=bhorizon_locin$V,
+                           "Y"=bhorizon_locin$Y,
+                           "Zn"=bhorizon_locin$Zn)
+      data_plot3 = bhorizon_NS
+      distance_S = bhorizon_NS$distance
+      elements_S <- switch(input$elements,
+                           "Ni"= bhorizon_NS$Ni,
+                           "Ag"= bhorizon_NS$Ag,
+                           "Al"=bhorizon_NS$Al,
+                           "As"=bhorizon_NS$Au,
+                           "Au"=bhorizon_NS$Au,
+                           "B"=bhorizon_NS$B,
+                           "Ba"=bhorizon_NS$Ba,
+                           "Be"=bhorizon_NS$Be,
+                           "Bi"=bhorizon_NS$Bi,
+                           "Ca"=bhorizon_NS$Ca,
+                           "Cd"=bhorizon_NS$Cd,
+                           "Co"=bhorizon_NS$Co,
+                           "Cr"=bhorizon_NS$Cr,
+                           "Cu"=bhorizon_NS$Cu,
+                           "Fe"=bhorizon_NS$Fe,
+                           "Hg"=bhorizon_NS$Hg,
+                           "K"=bhorizon_NS$K,
+                           "La"=bhorizon_NS$La,
+                           "Mg"=bhorizon_NS$Mg,
+                           "Mn"=bhorizon_NS$Mn,
+                           "Mo"=bhorizon_NS$Mo,
+                           "Na"=bhorizon_NS$Na,
+                           "Ni"=bhorizon_NS$Ni,
+                           "P"=bhorizon_NS$P,
+                           "Pb"=bhorizon_NS$Pb,
+                           "Pd"=bhorizon_NS$Pd,
+                           "Pt"=bhorizon_NS$Pt,
+                           "Rb"=bhorizon_NS$Rb,
+                           "S"=bhorizon_NS$S,
+                           "Sb"=bhorizon_NS$Sb,
+                           "Sc"=bhorizon_NS$Sc,
+                           "Se"=bhorizon_NS$Se,
+                           "Si"=bhorizon_NS$Si,
+                           "Sr"=bhorizon_NS$Sr,
+                           "Th"=bhorizon_NS$Th,
+                           "Tl"=bhorizon_NS$Tl,
+                           "U"=bhorizon_NS$U,
+                           "V"=bhorizon_NS$V,
+                           "Y"=bhorizon_NS$Y,
+                           "Zn"=bhorizon_NS$Zn)
+    }
+    if (input$Measurements == "C-horizon"){
+      
+      data_plot1 = chorizon_EW
+      distance_M = chorizon_EW$distance
+      elements_M <- switch(input$elements,
+                           "Ni"= chorizon_EW$Ni,
+                           "Ag"= chorizon_EW$Ag,
+                           "Al"=chorizon_EW$Al,
+                           "As"=chorizon_EW$Au,
+                           "Au"=chorizon_EW$Au,
+                           "B"=chorizon_EW$B,
+                           "Ba"=chorizon_EW$Ba,
+                           "Be"=chorizon_EW$Be,
+                           "Bi"=chorizon_EW$Bi,
+                           "Ca"=chorizon_EW$Ca,
+                           "Cd"=chorizon_EW$Cd,
+                           "Co"=chorizon_EW$Co,
+                           "Cr"=chorizon_EW$Cr,
+                           "Cu"=chorizon_EW$Cu,
+                           "Fe"=chorizon_EW$Fe,
+                           "Hg"=chorizon_EW$Hg,
+                           "K"=chorizon_EW$K,
+                           "La"=chorizon_EW$La,
+                           "Mg"=chorizon_EW$Mg,
+                           "Mn"=chorizon_EW$Mn,
+                           "Mo"=chorizon_EW$Mo,
+                           "Na"=chorizon_EW$Na,
+                           "Ni"=chorizon_EW$Ni,
+                           "P"=chorizon_EW$P,
+                           "Pb"=chorizon_EW$Pb,
+                           "Pd"=chorizon_EW$Pd,
+                           "Pt"=chorizon_EW$Pt,
+                           "Rb"=chorizon_EW$Rb,
+                           "S"=chorizon_EW$S,
+                           "Sb"=chorizon_EW$Sb,
+                           "Sc"=chorizon_EW$Sc,
+                           "Se"=chorizon_EW$Se,
+                           "Si"=chorizon_EW$Si,
+                           "Sr"=chorizon_EW$Sr,
+                           "Th"=chorizon_EW$Th,
+                           "Tl"=chorizon_EW$Tl,
+                           "U"=chorizon_EW$U,
+                           "V"=chorizon_EW$V,
+                           "Y"=chorizon_EW$Y,
+                           "Zn"=chorizon_EW$Zn)
+      data_plot2 = chorizon_locin
+      distance_Z = chorizon_locin$distance
+      elements_Z <- switch(input$elements,
+                           "Ni"= chorizon_locin$Ni,
+                           "Ag"= chorizon_locin$Ag,
+                           "Al"=chorizon_locin$Al,
+                           "As"=chorizon_locin$Au,
+                           "Au"=chorizon_locin$Au,
+                           "B"=chorizon_locin$B,
+                           "Ba"=chorizon_locin$Ba,
+                           "Be"=chorizon_locin$Be,
+                           "Bi"=chorizon_locin$Bi,
+                           "Ca"=chorizon_locin$Ca,
+                           "Cd"=chorizon_locin$Cd,
+                           "Co"=chorizon_locin$Co,
+                           "Cr"=chorizon_locin$Cr,
+                           "Cu"=chorizon_locin$Cu,
+                           "Fe"=chorizon_locin$Fe,
+                           "Hg"=chorizon_locin$Hg,
+                           "K"=chorizon_locin$K,
+                           "La"=chorizon_locin$La,
+                           "Mg"=chorizon_locin$Mg,
+                           "Mn"=chorizon_locin$Mn,
+                           "Mo"=chorizon_locin$Mo,
+                           "Na"=chorizon_locin$Na,
+                           "Ni"=chorizon_locin$Ni,
+                           "P"=chorizon_locin$P,
+                           "Pb"=chorizon_locin$Pb,
+                           "Pd"=chorizon_locin$Pd,
+                           "Pt"=chorizon_locin$Pt,
+                           "Rb"=chorizon_locin$Rb,
+                           "S"=chorizon_locin$S,
+                           "Sb"=chorizon_locin$Sb,
+                           "Sc"=chorizon_locin$Sc,
+                           "Se"=chorizon_locin$Se,
+                           "Si"=chorizon_locin$Si,
+                           "Sr"=chorizon_locin$Sr,
+                           "Th"=chorizon_locin$Th,
+                           "Tl"=chorizon_locin$Tl,
+                           "U"=chorizon_locin$U,
+                           "V"=chorizon_locin$V,
+                           "Y"=chorizon_locin$Y,
+                           "Zn"=chorizon_locin$Zn)
+      data_plot3 = chorizon_NS
+      distance_S = chorizon_NS$distance
+      elements_S <- switch(input$elements,
+                           "Ni"= chorizon_NS$Ni,
+                           "Ag"= chorizon_NS$Ag,
+                           "Al"=chorizon_NS$Al,
+                           "As"=chorizon_NS$Au,
+                           "Au"=chorizon_NS$Au,
+                           "B"=chorizon_NS$B,
+                           "Ba"=chorizon_NS$Ba,
+                           "Be"=chorizon_NS$Be,
+                           "Bi"=chorizon_NS$Bi,
+                           "Ca"=chorizon_NS$Ca,
+                           "Cd"=chorizon_NS$Cd,
+                           "Co"=chorizon_NS$Co,
+                           "Cr"=chorizon_NS$Cr,
+                           "Cu"=chorizon_NS$Cu,
+                           "Fe"=chorizon_NS$Fe,
+                           "Hg"=chorizon_NS$Hg,
+                           "K"=chorizon_NS$K,
+                           "La"=chorizon_NS$La,
+                           "Mg"=chorizon_NS$Mg,
+                           "Mn"=chorizon_NS$Mn,
+                           "Mo"=chorizon_NS$Mo,
+                           "Na"=chorizon_NS$Na,
+                           "Ni"=chorizon_NS$Ni,
+                           "P"=chorizon_NS$P,
+                           "Pb"=chorizon_NS$Pb,
+                           "Pd"=chorizon_NS$Pd,
+                           "Pt"=chorizon_NS$Pt,
+                           "Rb"=chorizon_NS$Rb,
+                           "S"=chorizon_NS$S,
+                           "Sb"=chorizon_NS$Sb,
+                           "Sc"=chorizon_NS$Sc,
+                           "Se"=chorizon_NS$Se,
+                           "Si"=chorizon_NS$Si,
+                           "Sr"=chorizon_NS$Sr,
+                           "Th"=chorizon_NS$Th,
+                           "Tl"=chorizon_NS$Tl,
+                           "U"=chorizon_NS$U,
+                           "V"=chorizon_NS$V,
+                           "Y"=chorizon_NS$Y,
+                           "Zn"=chorizon_NS$Zn)
+    }
+    if (input$Measurements == "Topsoil"){
+      
+      data_plot1 = topsoil_EW
+      distance_M = topsoil_EW$distance
+      elements_M <- switch(input$elements,
+                           "Ni"= topsoil_EW$Ni,
+                           "Ag"= topsoil_EW$Ag,
+                           "Al"=topsoil_EW$Al,
+                           "As"=topsoil_EW$Au,
+                           "Au"=topsoil_EW$Au,
+                           "B"=topsoil_EW$B,
+                           "Ba"=topsoil_EW$Ba,
+                           "Be"=topsoil_EW$Be,
+                           "Bi"=topsoil_EW$Bi,
+                           "Ca"=topsoil_EW$Ca,
+                           "Cd"=topsoil_EW$Cd,
+                           "Co"=topsoil_EW$Co,
+                           "Cr"=topsoil_EW$Cr,
+                           "Cu"=topsoil_EW$Cu,
+                           "Fe"=topsoil_EW$Fe,
+                           "Hg"=topsoil_EW$Hg,
+                           "K"=topsoil_EW$K,
+                           "La"=topsoil_EW$La,
+                           "Mg"=topsoil_EW$Mg,
+                           "Mn"=topsoil_EW$Mn,
+                           "Mo"=topsoil_EW$Mo,
+                           "Na"=topsoil_EW$Na,
+                           "Ni"=topsoil_EW$Ni,
+                           "P"=topsoil_EW$P,
+                           "Pb"=topsoil_EW$Pb,
+                           "Pd"=topsoil_EW$Pd,
+                           "Pt"=topsoil_EW$Pt,
+                           "Rb"=topsoil_EW$Rb,
+                           "S"=topsoil_EW$S,
+                           "Sb"=topsoil_EW$Sb,
+                           "Sc"=topsoil_EW$Sc,
+                           "Se"=topsoil_EW$Se,
+                           "Si"=topsoil_EW$Si,
+                           "Sr"=topsoil_EW$Sr,
+                           "Th"=topsoil_EW$Th,
+                           "Tl"=topsoil_EW$Tl,
+                           "U"=topsoil_EW$U,
+                           "V"=topsoil_EW$V,
+                           "Y"=topsoil_EW$Y,
+                           "Zn"=topsoil_EW$Zn)
       data_plot2 = topsoil_locin
       distance_Z = topsoil_locin$distance
       elements_Z <- switch(input$elements,
@@ -1209,73 +1467,90 @@ server <- function(input, output) {
                            "V"=topsoil_locin$V,
                            "Y"=topsoil_locin$Y,
                            "Zn"=topsoil_locin$Zn)
+      data_plot3 = topsoil_NS
+      distance_S = topsoil_NS$distance
+      elements_S <- switch(input$elements,
+                           "Ni"= topsoil_NS$Ni,
+                           "Ag"= topsoil_NS$Ag,
+                           "Al"=topsoil_NS$Al,
+                           "As"=topsoil_NS$Au,
+                           "Au"=topsoil_NS$Au,
+                           "B"=topsoil_NS$B,
+                           "Ba"=topsoil_NS$Ba,
+                           "Be"=topsoil_NS$Be,
+                           "Bi"=topsoil_NS$Bi,
+                           "Ca"=topsoil_NS$Ca,
+                           "Cd"=topsoil_NS$Cd,
+                           "Co"=topsoil_NS$Co,
+                           "Cr"=topsoil_NS$Cr,
+                           "Cu"=topsoil_NS$Cu,
+                           "Fe"=topsoil_NS$Fe,
+                           "Hg"=topsoil_NS$Hg,
+                           "K"=topsoil_NS$K,
+                           "La"=topsoil_NS$La,
+                           "Mg"=topsoil_NS$Mg,
+                           "Mn"=topsoil_NS$Mn,
+                           "Mo"=topsoil_NS$Mo,
+                           "Na"=topsoil_NS$Na,
+                           "Ni"=topsoil_NS$Ni,
+                           "P"=topsoil_NS$P,
+                           "Pb"=topsoil_NS$Pb,
+                           "Pd"=topsoil_NS$Pd,
+                           "Pt"=topsoil_NS$Pt,
+                           "Rb"=topsoil_NS$Rb,
+                           "S"=topsoil_NS$S,
+                           "Sb"=topsoil_NS$Sb,
+                           "Sc"=topsoil_NS$Sc,
+                           "Se"=topsoil_NS$Se,
+                           "Si"=topsoil_NS$Si,
+                           "Sr"=topsoil_NS$Sr,
+                           "Th"=topsoil_NS$Th,
+                           "Tl"=topsoil_NS$Tl,
+                           "U"=topsoil_NS$U,
+                           "V"=topsoil_NS$V,
+                           "Y"=topsoil_NS$Y,
+                           "Zn"=topsoil_NS$Zn)
     }
-      p1 <- ggmap(map)+geom_point(aes(x=long, y = lat, size = elemets,fill = elemets), data = data_set,shape=21, alpha=0.8)+
-        geom_point(data=latlon_location, aes(x=lon,y=lat), color='red',size=3)+
-        scale_fill_gradient(low = "white", high = "blue")+
-        scale_size_continuous(range = c(1, 7), breaks=pretty_breaks(5))+
-        labs(title = paste("the distribution of",input$elements,"in",input$Measurements,"soils of the Kola Project area"),
-             x = "longitude", y = "latitude",
-             caption ="displayed in a linear relationship between analytical value and proportional dot size") 
-      
-      p2 <-  ggmap(map)+geom_point(aes(x=long, y = lat, size = elemets,fill = elemets), data = data_set,shape=21, alpha=0.8)+
-        geom_point(data=latlon_location, aes(x=lon,y=lat), color='red',size=3)+
-        scale_fill_gradient(low = "white", high = "blue")+
-        scale_size_continuous(range = c(1, 15), breaks=pretty_breaks(7))+
-        labs(title = paste("the distribution of",input$elements,"in",input$Measurements,"soils of the Kola Project area"),
-             x = "longitude", y = "latitude",
-             caption ="displayed in a exponential relationship which focus on large value") 
-      
-      p3 <- ggplot(data_set,aes(x=elemets,y=elements2))+geom_point()+
-        labs(title = paste("the relationship between",input$elements,"and",input$elements2),
-             x = paste(input$elements,"in",input$Measurements,"[mg/kg]"),
-             y = paste(input$elements2,"in",input$Measurements,"[mg/kg]"),
-             caption ="displayed in real value")+
-        theme_gdocs()+ scale_color_gdocs()
-      
-      
-      p4 <- ggplot(data_set,aes(x=log10(elemets),y=log10(elements2))) + geom_point()+
-        labs(title = paste("the relationship between",input$elements,"and",input$elements2),
-             x = paste(input$elements,"in",input$Measurements,"[mg/kg]"),
-             y = paste(input$elements2,"in",input$Measurements,"[mg/kg]"),
-             caption ="displayed in log10(x) value")+
-        theme_gdocs()+ scale_color_gdocs()
-        
-      
-      
-      
-      p5<- ggmap(map)+geom_point(aes(x=X_range,y=Y_range), data = data_plot1, shape=21, alpha=0.8)+
-        geom_point(data=latlon_location, aes(x=lon[2],y=lat[2]), color='red',size=3)+
-        geom_hline(yintercept=67.46288)+
-        geom_hline(yintercept=68.35282)+
-        labs(title = "The sampling area of the samples in the figure on the right",x = "longitude", y = "latitude") 
-      
-      p6<- ggplot(data_plot1,aes(x=distance_M,y=log10(elements_M)))+geom_point()+
-        geom_smooth()+
-        labs(title = "The relationship between chemical elements level and the distance",
-             x = "Distance from Monchegorsk [km]", y = paste(input$elements,"in",input$Measurements,"[mg/kg]"))+
-        theme_gdocs()+ scale_color_gdocs()
-    
-        
-      p7<-ggmap(map)+geom_point(aes(x=long,y=lat), data = data_plot2, shape=21, alpha=0.8)+
-        geom_segment(aes(x=24, y=68.5, xend=24, yend=71.3))+
-        geom_segment(aes(x=24, y=71.3, xend=28, yend=71.3))+
-        geom_segment(aes(x=28, y=71.3, xend=34, yend=69.4))+
-        geom_segment(aes(x=34, y=69.4, xend=32, yend=68.4))+
-        geom_segment(aes(x=24, y=68.5, xend=32, yend=68.4))+
-        geom_point(data=latlon_location, aes(x=lon[1],y=lat[1]), color='red',size=3)+
-        labs(title = "The sampling area of the samples in the figure on the right",x = "longitude", y = "latitude")
-      
-      p8<-ggplot(data_plot2,aes(x=distance_Z,y=log10(elements_Z)))+geom_point()+
-        geom_smooth(method='lm', formula= y~x)+
-        labs(title = "The relationship between chemical elements level and the distance",
-             x = "Distance from Nikel/Zapoljarnij [km]", y = paste(input$elements,"in",input$Measurements,"[mg/kg]"))+
-        theme_gdocs()+ scale_color_gdocs()
-     
-      
-      grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,ncol=2)
-      
-    },height = 1500, width = 1500)
-}
   
+  p5<- ggmap(map)+geom_point(aes(x=long,y=lat), data = data_plot1, shape=18, alpha=0.9,color='blue')+
+    geom_point(data=latlon_location, aes(x=lon[2],y=lat[2]), color='red',size=3)+
+    geom_hline(yintercept=67.46288)+
+    geom_hline(yintercept=68.35282)+
+    labs(title = "The sampling area of the samples in the figure on the right",x = "longitude", y = "latitude") 
+  
+  p6<- ggplot(data_plot1,aes(x=distance_M,y=log10(elements_M)))+geom_point()+
+    geom_smooth()+
+    labs(title = "The relationship between chemical elements level and the distance",
+         x = "Distance from Monchegorsk [km]", y = paste(input$elements,"in",input$Measurements,"[mg/kg]"))
+  
+  p7<-ggmap(map)+geom_point(aes(x=long,y=lat), data = data_plot3, shape=18, alpha=0.9,color='blue')+
+    geom_point(data=latlon_location, aes(x=lon,y=lat), color='red',size=3)+
+    geom_vline(xintercept=23.9)+
+    geom_vline(xintercept=26.02158)+
+    labs(title = "The sampling area of the samples in the figure on the right",x = "longitude", y = "latitude") 
+  
+  p8<- ggplot(data_plot3,aes(x=distance_S,y=log10(elements_S)))+geom_point()+
+    geom_smooth()+
+    labs(title = "The relationship between chemical elements level and the distance",
+         x = "Distance from coast [km]", y = paste(input$elements,"in",input$Measurements,"[mg/kg]"))
+  
+  
+  p9<-ggmap(map)+geom_point(aes(x=long,y=lat), data = data_plot2, shape=18, alpha=0.9,color='blue')+
+    geom_segment(aes(x=24, y=68.5, xend=24, yend=71.3))+
+    geom_segment(aes(x=24, y=71.3, xend=28, yend=71.3))+
+    geom_segment(aes(x=28, y=71.3, xend=34, yend=69.4))+
+    geom_segment(aes(x=34, y=69.4, xend=32, yend=68.4))+
+    geom_segment(aes(x=24, y=68.5, xend=32, yend=68.4))+
+    geom_point(data=latlon_location, aes(x=lon[1],y=lat[1]), color='red',size=3)+
+    labs(title = "The sampling area of the samples in the figure on the right",x = "longitude", y = "latitude")
+  
+  p10<-ggplot(data_plot2,aes(x=distance_Z,y=log10(elements_Z)))+geom_point()+
+    geom_smooth(method='lm', formula= y~x)+
+    labs(title = "The relationship between chemical elements level and the distance",
+         x = "Distance from Nikel/Zapoljarnij [km]", y = paste(input$elements,"in",input$Measurements,"[mg/kg]"))
+   
+  grid.arrange(p5,p6,p7,p8,p9,p10,ncol=2)
+  },height = 1200, width = 1000)
+}
+
 shinyApp(ui,server)
