@@ -92,7 +92,7 @@ lon = c(30.686939,32.53156)
 latlon_location = data.frame(lon = lon,lat = lat)
 
 #get base map
-register_google(key = "AIzaSyDW5aUCtELBr9IYQTjGfDEZoOSjggEl2hY")
+register_google(key = "AIzaSyDhsGa2odN1Fn_EHVTKLTW6xo6Nq_ONiXM")
 map <- get_googlemap(c(30, 69),zoom = 6,scale = 4)
 
 
